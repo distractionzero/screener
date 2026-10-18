@@ -19,11 +19,24 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    val releaseStoreFile = providers.gradleProperty("SCREEN_STORE_FILE").orNull
+
+    signingConfigs {
+        if (releaseStoreFile != null) {
+            create("release") {
+                storeFile = file(releaseStoreFile)
+                storePassword = providers.gradleProperty("SCREEN_STORE_PASSWORD").orNull
+                keyAlias = providers.gradleProperty("SCREEN_KEY_ALIAS").orNull
+                keyPassword = providers.gradleProperty("SCREEN_KEY_PASSWORD").orNull
+            }
+        }
+    }
+
     buildTypes {
         release {
+            signingConfig = signingConfigs.findByName("release")
             optimization {
                 enable = true
-                packageScope = setOf("androidx.**", "kotlin.**", "kotlinx.**")
             }
         }
     }
