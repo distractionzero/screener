@@ -137,7 +137,7 @@ private fun BlockUnknownRow(enabled: Boolean, onChange: (Boolean) -> Unit) {
             supportingContent = {
                 Text(
                     "Rejects every call from a number not in your contacts, unless an allow rule matches. " +
-                        "This also blocks delivery agents, doctors, and anyone new.",
+                        "This also blocks delivery agents, cab drivers and anyone new.",
                     color = if (enabled) colors.error else colors.onSurfaceVariant,
                 )
             },
