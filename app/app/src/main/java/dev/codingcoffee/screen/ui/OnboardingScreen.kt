@@ -51,7 +51,7 @@ fun OnboardingScreen() {
                 tint = MaterialTheme.colorScheme.onPrimaryContainer,
                 size = 96,
             )
-            Text("Screen", style = MaterialTheme.typography.headlineLarge)
+            Text("Phone Screener", style = MaterialTheme.typography.headlineLarge)
             Text(
                 "This app doesn't replace your phone app. It quietly checks calls from unknown numbers " +
                     "and rejects the ones matching your rules.",
@@ -68,8 +68,8 @@ fun OnboardingScreen() {
             Spacer(Modifier.height(8.dp))
             if (denied) {
                 Text(
-                    "Screen needs to be your caller ID & spam app to check calls. " +
-                        "If the prompt doesn't appear again, choose Screen in system settings.",
+                    "Phone Screener needs to be your caller ID & spam app to check calls. " +
+                        "If the prompt doesn't appear again, choose Phone Screener in system settings.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.error,
                     textAlign = TextAlign.Center,

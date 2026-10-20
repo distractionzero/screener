@@ -1,10 +1,10 @@
-# Screen
+# Phone Screener
 
-A call blocker for Android (India). Screen rejects incoming calls that match your rules: a regex on the
+A call blocker for Android (India). Phone Screener rejects incoming calls that match your rules: a regex on the
 number, or a regex on the caller name the network sends. It does **not** replace your phone app. It only
 holds the call screening role (`ROLE_CALL_SCREENING`) and works alongside your dialer (e.g. Google Phone).
 
-Every call that reaches the service is logged with all the fields and extras the system passes in. Use the
+Every incoming call that reaches the service is logged with all the fields and extras the system passes in. Use the
 log to see what Jio, Airtel, Vi and BSNL actually send.
 
 - Saved contacts never reach the service, so they always ring.
@@ -126,7 +126,7 @@ Later release builds install over the previous one with `adb install -r`, keepin
 
 With USB debugging on: `adb install -r app/build/outputs/apk/release/app-release.apk`. Or copy the APK to the
 phone and open it, allowing "Install unknown apps" when asked. If granting the call screening role is
-blocked as a restricted setting, go to Settings → Apps → Screen → ⋮ → Allow restricted settings.
+blocked as a restricted setting, go to Settings → Apps → Phone Screener → ⋮ → Allow restricted settings.
 
 ### Debugging a release crash
 

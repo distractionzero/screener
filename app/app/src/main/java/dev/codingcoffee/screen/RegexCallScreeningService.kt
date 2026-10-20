@@ -26,7 +26,8 @@ class RegexCallScreeningService : CallScreeningService() {
         val rawNumber = runCatching { callDetails.handle?.schemeSpecificPart }.getOrNull()
         val number = normalizeNumber(rawNumber)
         val callerName = runCatching { callDetails.callerDisplayName }.getOrNull()
-        val incoming = runCatching { callDetails.callDirection == Call.Details.DIRECTION_INCOMING }.getOrDefault(false)
+        val direction = runCatching { callDetails.callDirection }.getOrDefault(Call.Details.DIRECTION_UNKNOWN)
+        val incoming = direction == Call.Details.DIRECTION_INCOMING
 
         val decision = try {
             awaitEngine(app)?.evaluate(number, callerName, incoming)
@@ -46,6 +47,7 @@ class RegexCallScreeningService : CallScreeningService() {
             CallResponse.Builder().build()
         }
         respondToCall(callDetails, response)
+        if (direction == Call.Details.DIRECTION_OUTGOING) return
 
         app.scope.launch(Dispatchers.IO) {
             runCatching { app.callLog.append(logEntry(callDetails, timestamp, rawNumber, number, decision)) }

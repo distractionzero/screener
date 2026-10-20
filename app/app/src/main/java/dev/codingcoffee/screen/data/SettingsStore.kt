@@ -15,10 +15,13 @@ import kotlinx.coroutines.flow.map
 import org.json.JSONArray
 import org.json.JSONObject
 
+enum class ThemeMode { SYSTEM, LIGHT, DARK }
+
 data class Settings(
     val rules: List<Rule>,
     val blockUnknown: Boolean,
     val onboarded: Boolean,
+    val theme: ThemeMode = ThemeMode.SYSTEM,
 )
 
 private val Context.dataStore by preferencesDataStore(name = "settings")
@@ -26,6 +29,7 @@ private val Context.dataStore by preferencesDataStore(name = "settings")
 private val RULES = stringPreferencesKey("rules")
 private val BLOCK_UNKNOWN = booleanPreferencesKey("block_unknown")
 private val ONBOARDED = booleanPreferencesKey("onboarded")
+private val THEME = stringPreferencesKey("theme")
 
 class SettingsStore(context: Context) {
     private val store = context.dataStore
@@ -35,6 +39,7 @@ class SettingsStore(context: Context) {
             rules = prefs.rules(),
             blockUnknown = prefs[BLOCK_UNKNOWN] ?: false,
             onboarded = prefs[ONBOARDED] ?: false,
+            theme = ThemeMode.entries.find { it.name == prefs[THEME] } ?: ThemeMode.SYSTEM,
         )
     }
 
@@ -54,6 +59,10 @@ class SettingsStore(context: Context) {
 
     suspend fun setBlockUnknown(enabled: Boolean) {
         store.edit { it[BLOCK_UNKNOWN] = enabled }
+    }
+
+    suspend fun setTheme(theme: ThemeMode) {
+        store.edit { it[THEME] = theme.name }
     }
 
     suspend fun setOnboarded() {

@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.CallMade
 import androidx.compose.material.icons.rounded.Block
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Person
@@ -64,8 +63,9 @@ fun ActivityScreen(onOpenEntry: (String) -> Unit) {
     var filter by rememberSaveable { mutableStateOf(Filter.ALL) }
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
-    val visible = remember(entries, filter) {
-        entries.orEmpty().filter {
+    val incoming = remember(entries) { entries?.filterNot { it.outgoing } }
+    val visible = remember(incoming, filter) {
+        incoming.orEmpty().filter {
             when (filter) {
                 Filter.ALL -> true
                 Filter.BLOCKED -> it.blocked
@@ -88,7 +88,7 @@ fun ActivityScreen(onOpenEntry: (String) -> Unit) {
             ),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            item { StatusCard(roleHeld, entries.orEmpty()) }
+            item { StatusCard(roleHeld, incoming.orEmpty()) }
             item {
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -103,7 +103,7 @@ fun ActivityScreen(onOpenEntry: (String) -> Unit) {
                     }
                 }
             }
-            val all = entries
+            val all = incoming
             when {
                 all == null -> Unit
                 all.isEmpty() -> item {
@@ -154,7 +154,7 @@ private fun StatusCard(roleHeld: Boolean, entries: List<LogEntry>) {
                     )
                     Text(
                         if (roleHeld) "Unknown callers are checked against your rules."
-                        else "Calls aren't being checked. Set Screen as your caller ID & spam app.",
+                        else "Calls aren't being checked. Set Phone Screener as your caller ID & spam app.",
                         style = MaterialTheme.typography.bodyMedium,
                     )
                 }
@@ -190,7 +190,6 @@ private fun blockedCounts(entries: List<LogEntry>): Pair<Int, Int> {
 private fun CallRow(entry: LogEntry, onClick: () -> Unit) {
     val colors = MaterialTheme.colorScheme
     val label = when {
-        entry.outgoing -> "Outgoing"
         entry.reason == REASON_UNKNOWN -> "Unknown caller"
         entry.reason != REASON_NONE && entry.reason.isNotBlank() -> entry.reason
         else -> entry.callerName?.takeIf { it.isNotBlank() }
@@ -216,9 +215,6 @@ private fun CallRow(entry: LogEntry, onClick: () -> Unit) {
                     overflow = TextOverflow.Ellipsis,
                 )
             },
-            trailingContent = if (entry.outgoing) {
-                { Icon(Icons.AutoMirrored.Rounded.CallMade, contentDescription = "Outgoing call") }
-            } else null,
         )
     }
 }

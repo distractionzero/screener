@@ -5,13 +5,18 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
+import androidx.compose.material.icons.rounded.Code
 import androidx.compose.material.icons.rounded.DeleteSweep
 import androidx.compose.material.icons.rounded.Lightbulb
 import androidx.compose.material.icons.rounded.Lock
+import androidx.compose.material.icons.rounded.Palette
+import androidx.compose.material.icons.rounded.Policy
 import androidx.compose.material.icons.rounded.Shield
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -21,6 +26,9 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
@@ -37,15 +45,18 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.codingcoffee.screen.app
+import dev.codingcoffee.screen.data.ThemeMode
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen() {
+fun SettingsScreen(onOpenPrivacy: () -> Unit, onOpenLicenses: () -> Unit) {
     val context = LocalContext.current
     val app = context.app
+    val settings by app.settings.collectAsStateWithLifecycle()
     val entries by app.callLog.entries.collectAsStateWithLifecycle()
     val roleHeld = rememberRoleHeld()
+    val theme = settings?.theme ?: ThemeMode.SYSTEM
     var confirmClear by rememberSaveable { mutableStateOf(false) }
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val colors = MaterialTheme.colorScheme
@@ -72,12 +83,42 @@ fun SettingsScreen() {
                     headlineContent = { Text("Call screening role") },
                     supportingContent = {
                         Text(
-                            if (roleHeld) "Active. Screen is your caller ID & spam app."
-                            else "Inactive. Tap to choose Screen as your caller ID & spam app.",
+                            if (roleHeld) "Active. Phone Screener is your caller ID & spam app."
+                            else "Inactive. Tap to choose Phone Screener as your caller ID & spam app.",
                             color = if (roleHeld) colors.onSurfaceVariant else colors.error,
                         )
                     },
                 )
+            }
+
+            SectionHeader("Appearance")
+            TonalCard {
+                ListItem(
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                    leadingContent = { Icon(Icons.Rounded.Palette, contentDescription = null) },
+                    headlineContent = { Text("Theme") },
+                )
+                SingleChoiceSegmentedButtonRow(
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
+                ) {
+                    ThemeMode.entries.forEachIndexed { i, mode ->
+                        SegmentedButton(
+                            selected = theme == mode,
+                            onClick = { app.scope.launch { app.settingsStore.setTheme(mode) } },
+                            shape = SegmentedButtonDefaults.itemShape(i, ThemeMode.entries.size),
+                        ) {
+                            Text(
+                                when (mode) {
+                                    ThemeMode.SYSTEM -> "System"
+                                    ThemeMode.LIGHT -> "Light"
+                                    ThemeMode.DARK -> "Dark"
+                                }
+                            )
+                        }
+                    }
+                }
             }
 
             SectionHeader("Data")
@@ -93,6 +134,10 @@ fun SettingsScreen() {
 
             SectionHeader("About")
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                TonalCard {
+                    LinkRow(Icons.Rounded.Policy, "Privacy policy", onOpenPrivacy)
+                    LinkRow(Icons.Rounded.Code, "Open source licenses", onOpenLicenses)
+                }
                 Note(
                     Icons.Rounded.Lock,
                     "Everything stays on this device. This app has no internet access.",
@@ -121,6 +166,17 @@ fun SettingsScreen() {
             dismissButton = { TextButton(onClick = { confirmClear = false }) { Text("Cancel") } },
         )
     }
+}
+
+@Composable
+private fun LinkRow(icon: ImageVector, title: String, onClick: () -> Unit) {
+    ListItem(
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+        modifier = Modifier.clickable(onClick = onClick),
+        leadingContent = { Icon(icon, contentDescription = null) },
+        headlineContent = { Text(title) },
+        trailingContent = { Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, contentDescription = null) },
+    )
 }
 
 @Composable
