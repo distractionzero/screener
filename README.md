@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="website/public/icon-192.png" alt="Phone Screener icon" width="96" height="96">
+</p>
+
 # Phone Screener
 
 A call blocker for Android (India). Phone Screener rejects incoming calls that match your rules: a regex on the
