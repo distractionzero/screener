@@ -5,11 +5,13 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import dev.codingcoffee.screen.rules.DefaultRules
 import dev.codingcoffee.screen.rules.Rule
 import dev.codingcoffee.screen.rules.RuleAction
 import dev.codingcoffee.screen.rules.RuleType
+import dev.codingcoffee.screen.rules.isDefault
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import org.json.JSONArray
@@ -30,6 +32,7 @@ private val RULES = stringPreferencesKey("rules")
 private val BLOCK_UNKNOWN = booleanPreferencesKey("block_unknown")
 private val ONBOARDED = booleanPreferencesKey("onboarded")
 private val THEME = stringPreferencesKey("theme")
+private val TOGGLED_DEFAULTS = stringSetPreferencesKey("toggled_defaults")
 
 class SettingsStore(context: Context) {
     private val store = context.dataStore
@@ -43,10 +46,6 @@ class SettingsStore(context: Context) {
         )
     }
 
-    suspend fun seedDefaults() {
-        store.edit { if (it[RULES] == null) it[RULES] = encodeRules(DefaultRules) }
-    }
-
     suspend fun saveRule(rule: Rule) = updateRules { rules ->
         if (rules.any { it.id == rule.id }) rules.map { if (it.id == rule.id) rule else it } else rules + rule
     }
@@ -55,6 +54,15 @@ class SettingsStore(context: Context) {
 
     suspend fun insertRule(rule: Rule, index: Int) = updateRules { rules ->
         rules.toMutableList().apply { add(index.coerceIn(0, size), rule) }
+    }
+
+    suspend fun setRuleEnabled(rule: Rule, enabled: Boolean) {
+        if (!rule.isDefault) return saveRule(rule.copy(enabled = enabled))
+        val shipped = DefaultRules.first { it.id == rule.id }.enabled
+        store.edit {
+            val toggled = it.toggledDefaults()
+            it[TOGGLED_DEFAULTS] = if (enabled == shipped) toggled - rule.id else toggled + rule.id
+        }
     }
 
     suspend fun setBlockUnknown(enabled: Boolean) {
@@ -70,11 +78,27 @@ class SettingsStore(context: Context) {
     }
 
     private suspend fun updateRules(transform: (List<Rule>) -> List<Rule>) {
-        store.edit { it[RULES] = encodeRules(transform(it.rules())) }
+        store.edit {
+            it[TOGGLED_DEFAULTS] = it.toggledDefaults()
+            it[RULES] = encodeRules(transform(it.customRules()))
+        }
     }
 }
 
-private fun Preferences.rules(): List<Rule> = this[RULES]?.let(::decodeRules) ?: DefaultRules
+private fun Preferences.storedRules(): List<Rule> = this[RULES]?.let(::decodeRules).orEmpty()
+
+private fun Preferences.customRules(): List<Rule> = storedRules().filterNot { it.isDefault }
+
+// Older versions stored full copies of the default rules; carry over their on/off state.
+private fun Preferences.toggledDefaults(): Set<String> = this[TOGGLED_DEFAULTS] ?: storedRules()
+    .filter { stored -> stored.isDefault && DefaultRules.any { it.id == stored.id && it.enabled != stored.enabled } }
+    .map { it.id }
+    .toSet()
+
+private fun Preferences.rules(): List<Rule> {
+    val toggled = toggledDefaults()
+    return DefaultRules.map { if (it.id in toggled) it.copy(enabled = !it.enabled) else it } + customRules()
+}
 
 private fun encodeRules(rules: List<Rule>): String = JSONArray().apply {
     rules.forEach { rule ->

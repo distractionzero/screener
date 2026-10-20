@@ -57,6 +57,7 @@ import dev.codingcoffee.screen.rules.Rule
 import dev.codingcoffee.screen.rules.RuleAction
 import dev.codingcoffee.screen.rules.RuleType
 import dev.codingcoffee.screen.rules.describe
+import dev.codingcoffee.screen.rules.isDefault
 import dev.codingcoffee.screen.rules.parseSimple
 import kotlinx.coroutines.launch
 
@@ -71,10 +72,10 @@ fun RulesScreen(onEdit: (String) -> Unit, onAdd: () -> Unit) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
     val onToggle: (Rule, Boolean) -> Unit = { rule, enabled ->
-        app.scope.launch { app.settingsStore.saveRule(rule.copy(enabled = enabled)) }
+        app.scope.launch { app.settingsStore.setRuleEnabled(rule, enabled) }
     }
     val onDelete: (Rule) -> Unit = { rule ->
-        val index = rules.indexOf(rule)
+        val index = rules.filterNot { it.isDefault }.indexOf(rule)
         app.scope.launch { app.settingsStore.deleteRule(rule.id) }
         scope.launch {
             snackbar.currentSnackbarData?.dismiss()
@@ -171,6 +172,17 @@ private fun LazyListScope.ruleSection(
 
 @Composable
 private fun RuleRow(rule: Rule, onClick: () -> Unit, onToggle: (Boolean) -> Unit, onDelete: () -> Unit) {
+    if (rule.isDefault) {
+        TonalCard {
+            RuleListItem(
+                rule = rule,
+                modifier = Modifier.toggleable(value = rule.enabled, role = Role.Switch, onValueChange = onToggle),
+                onToggle = null,
+            )
+        }
+        return
+    }
+
     val dismissState = rememberSwipeToDismissBoxState()
     val colors = MaterialTheme.colorScheme
 
@@ -194,27 +206,34 @@ private fun RuleRow(rule: Rule, onClick: () -> Unit, onToggle: (Boolean) -> Unit
                 customActions = listOf(CustomAccessibilityAction("Delete") { onDelete(); true })
             },
         ) {
-            ListItem(
-                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                headlineContent = { Text(rule.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                overlineContent = { Text(if (rule.type == RuleType.NUMBER) "Number" else "Caller name") },
-                supportingContent = {
-                    val simple = remember(rule.type, rule.pattern) { parseSimple(rule.type, rule.pattern) }
-                    Text(
-                        simple?.describe() ?: rule.pattern,
-                        fontFamily = if (simple == null) FontFamily.Monospace else null,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                },
-                trailingContent = {
-                    Switch(
-                        checked = rule.enabled,
-                        onCheckedChange = onToggle,
-                        modifier = Modifier.semantics { contentDescription = "Enable ${rule.name}" },
-                    )
-                },
-            )
+            RuleListItem(rule = rule, onToggle = onToggle)
         }
     }
+}
+
+@Composable
+private fun RuleListItem(rule: Rule, onToggle: ((Boolean) -> Unit)?, modifier: Modifier = Modifier) {
+    val kind = if (rule.type == RuleType.NUMBER) "Number" else "Caller name"
+    ListItem(
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+        modifier = modifier,
+        headlineContent = { Text(rule.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+        overlineContent = { Text(if (rule.isDefault) "$kind · Built-in" else kind) },
+        supportingContent = {
+            val simple = remember(rule.type, rule.pattern) { parseSimple(rule.type, rule.pattern) }
+            Text(
+                simple?.describe() ?: rule.pattern,
+                fontFamily = if (simple == null) FontFamily.Monospace else null,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        },
+        trailingContent = {
+            Switch(
+                checked = rule.enabled,
+                onCheckedChange = onToggle,
+                modifier = Modifier.semantics { contentDescription = "Enable ${rule.name}" },
+            )
+        },
+    )
 }

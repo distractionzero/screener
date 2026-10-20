@@ -26,6 +26,10 @@ val DefaultRules = listOf(
     Rule("default-spam", "Carrier spam label", RuleType.CALLER_NAME, """(?i)spam|fraud|scam""", RuleAction.BLOCK),
 )
 
+private val DefaultRuleIds = DefaultRules.map { it.id }.toSet()
+
+val Rule.isDefault: Boolean get() = id in DefaultRuleIds
+
 fun normalizeNumber(raw: String?): String? =
     raw?.filterNot { it == ' ' || it == '-' || it == '(' || it == ')' }
 

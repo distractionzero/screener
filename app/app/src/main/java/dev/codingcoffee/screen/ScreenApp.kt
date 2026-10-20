@@ -16,7 +16,6 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.launch
 import java.io.File
 
 class ScreenApp : Application() {
@@ -44,7 +43,6 @@ class ScreenApp : Application() {
         engine = settings.filterNotNull()
             .map { RuleEngine(it.rules, it.blockUnknown) }
             .stateIn(scope, SharingStarted.Eagerly, null)
-        scope.launch { runCatching { settingsStore.seedDefaults() } }
     }
 
     companion object {
