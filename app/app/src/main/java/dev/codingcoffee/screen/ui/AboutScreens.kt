@@ -1,7 +1,5 @@
 package dev.codingcoffee.screen.ui
 
-import android.content.ActivityNotFoundException
-import android.content.Intent
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -33,7 +31,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
-import androidx.core.net.toUri
 
 private const val APACHE_2 = "https://www.apache.org/licenses/LICENSE-2.0"
 
@@ -139,12 +136,7 @@ fun LicensesScreen(onBack: () -> Unit) {
                 TonalCard {
                     ListItem(
                         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                        modifier = Modifier.clickable(onClickLabel = "Open license") {
-                            try {
-                                context.startActivity(Intent(Intent.ACTION_VIEW, library.url.toUri()))
-                            } catch (_: ActivityNotFoundException) {
-                            }
-                        },
+                        modifier = Modifier.clickable(onClickLabel = "Open license") { openUri(context, library.url) },
                         headlineContent = { Text(library.name) },
                         supportingContent = { Text("${library.owner} · ${library.license}") },
                         trailingContent = {

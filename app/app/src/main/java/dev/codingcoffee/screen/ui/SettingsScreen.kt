@@ -13,9 +13,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.Code
 import androidx.compose.material.icons.rounded.DeleteSweep
-import androidx.compose.material.icons.rounded.Lightbulb
+import androidx.compose.material.icons.rounded.Description
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.Palette
+import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Policy
 import androidx.compose.material.icons.rounded.Shield
 import androidx.compose.material3.AlertDialog
@@ -47,6 +48,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.codingcoffee.screen.app
 import dev.codingcoffee.screen.data.ThemeMode
 import kotlinx.coroutines.launch
+
+private const val DEVELOPER_NAME = "Ameya Shenoy"
+private const val DEVELOPER_URL = "https://www.codingcoffee.dev"
+private const val REPO_URL = "https://github.com/distractionzero/phone-spam-screener"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -121,6 +126,18 @@ fun SettingsScreen(onOpenPrivacy: () -> Unit, onOpenLicenses: () -> Unit) {
                 }
             }
 
+            Note(
+                Icons.Rounded.Lock,
+                "Everything stays on this device. This app has no internet access.",
+                Modifier.padding(top = 24.dp),
+            )
+
+            SectionHeader("About")
+            TonalCard {
+                LinkRow(Icons.Rounded.Policy, "Privacy policy", onClick = onOpenPrivacy)
+                LinkRow(Icons.Rounded.Description, "Open source licenses", onClick = onOpenLicenses)
+            }
+
             SectionHeader("Data")
             TonalCard {
                 ListItem(
@@ -132,21 +149,13 @@ fun SettingsScreen(onOpenPrivacy: () -> Unit, onOpenLicenses: () -> Unit) {
                 )
             }
 
-            SectionHeader("About")
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                TonalCard {
-                    LinkRow(Icons.Rounded.Policy, "Privacy policy", onOpenPrivacy)
-                    LinkRow(Icons.Rounded.Code, "Open source licenses", onOpenLicenses)
+            TonalCard(Modifier.padding(top = 24.dp)) {
+                LinkRow(Icons.Rounded.Person, "Developer", "$DEVELOPER_NAME\n${DEVELOPER_URL.removePrefix("https://www.")}") {
+                    openUri(context, DEVELOPER_URL)
                 }
-                Note(
-                    Icons.Rounded.Lock,
-                    "Everything stays on this device. This app has no internet access.",
-                )
-                Note(
-                    Icons.Rounded.Lightbulb,
-                    "Tip: Google Phone's built-in “Filter spam calls” setting works alongside this app. " +
-                        "Find it in Phone › Settings › Caller ID & spam.",
-                )
+                LinkRow(Icons.Rounded.Code, "Source code", REPO_URL.removePrefix("https://")) {
+                    openUri(context, REPO_URL)
+                }
             }
         }
     }
@@ -169,19 +178,20 @@ fun SettingsScreen(onOpenPrivacy: () -> Unit, onOpenLicenses: () -> Unit) {
 }
 
 @Composable
-private fun LinkRow(icon: ImageVector, title: String, onClick: () -> Unit) {
+private fun LinkRow(icon: ImageVector, title: String, subtitle: String? = null, onClick: () -> Unit) {
     ListItem(
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
         modifier = Modifier.clickable(onClick = onClick),
         leadingContent = { Icon(icon, contentDescription = null) },
         headlineContent = { Text(title) },
+        supportingContent = subtitle?.let { { Text(it) } },
         trailingContent = { Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, contentDescription = null) },
     )
 }
 
 @Composable
-private fun Note(icon: ImageVector, text: String) {
-    TonalCard {
+private fun Note(icon: ImageVector, text: String, modifier: Modifier = Modifier) {
+    TonalCard(modifier) {
         Row(Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(text, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)

@@ -1,6 +1,7 @@
 package dev.codingcoffee.screen.ui
 
 import android.app.role.RoleManager
+import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.provider.Settings
@@ -38,6 +39,7 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.core.net.toUri
 import androidx.lifecycle.compose.LifecycleResumeEffect
 
 fun isRoleHeld(context: Context): Boolean =
@@ -64,6 +66,13 @@ fun rememberRoleRequest(onResult: (granted: Boolean) -> Unit = {}): () -> Unit {
     return {
         val roleManager = context.getSystemService(RoleManager::class.java)
         launcher.launch(roleManager.createRequestRoleIntent(RoleManager.ROLE_CALL_SCREENING))
+    }
+}
+
+fun openUri(context: Context, uri: String, action: String = Intent.ACTION_VIEW) {
+    try {
+        context.startActivity(Intent(action, uri.toUri()))
+    } catch (_: ActivityNotFoundException) {
     }
 }
 
