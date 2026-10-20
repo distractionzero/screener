@@ -115,9 +115,9 @@ Debug and release builds are signed with different keys, so uninstall the debug 
 app's data.
 
 ```sh
-adb -s emulator-5554 uninstall dev.codingcoffee.screen
-adb -s emulator-5554 install -r app/build/outputs/apk/release/app-release.apk
-adb -s emulator-5554 shell am start -n dev.codingcoffee.screen/.MainActivity
+adb uninstall dev.codingcoffee.screen
+adb install -r app/build/outputs/apk/release/app-release.apk
+adb shell am start -n dev.codingcoffee.screen/.MainActivity
 ```
 
 Later release builds install over the previous one with `adb install -r`, keeping data.
