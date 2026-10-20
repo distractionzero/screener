@@ -2,7 +2,16 @@
   <img src="website/public/icon-192.png" alt="Phone Screener icon" width="96" height="96">
 </p>
 
-# Phone Screener
+<h1 align="center">Phone Screener</h1>
+
+<p align="center">Block spam calls on Android with your own rules. Free, open source and fully offline.</p>
+
+<p align="center">
+  <a href="#layout">Layout</a> ·
+  <a href="#build">Build</a> ·
+  <a href="#run-on-an-emulator">Run on an emulator</a> ·
+  <a href="#release-build">Release build</a>
+</p>
 
 A call blocker for Android (India). Phone Screener rejects incoming calls that match your rules: a regex on the
 number, or a regex on the caller name the network sends. It does **not** replace your phone app. It only
