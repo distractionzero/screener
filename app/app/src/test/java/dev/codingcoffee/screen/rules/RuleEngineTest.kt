@@ -65,12 +65,13 @@ class RuleEngineTest {
     }
 
     @Test
-    fun `default rules block 140 series and carrier spam label`() {
+    fun `default rules block 140, cloud telephony and carrier spam label`() {
         val engine = RuleEngine(DefaultRules, blockUnknown = false)
         assertEquals(Decision(true, "Telemarketing (140 series)"), engine.evaluate("+911409806457", null, true))
         assertEquals(Decision(true, "Carrier spam label"), engine.evaluate("+917012345678", "Spam Alert", true))
         assertEquals(Decision(false, REASON_NONE), engine.evaluate("+917012345678", "Asha", true))
-        assertEquals(Decision(false, REASON_NONE), engine.evaluate("+918071234567", null, true))
+        assertEquals(Decision(true, "Bangalore cloud telephony (8071)"), engine.evaluate("+918071234567", null, true))
+        assertEquals(Decision(true, "Ahmedabad cloud telephony (7935)"), engine.evaluate("07935123456", null, true))
     }
 
     @Test

@@ -32,7 +32,7 @@ private val RULES = stringPreferencesKey("rules")
 private val BLOCK_UNKNOWN = booleanPreferencesKey("block_unknown")
 private val ONBOARDED = booleanPreferencesKey("onboarded")
 private val THEME = stringPreferencesKey("theme")
-private val TOGGLED_DEFAULTS = stringSetPreferencesKey("toggled_defaults")
+private val DEFAULT_OVERRIDES = stringSetPreferencesKey("default_overrides")
 
 class SettingsStore(context: Context) {
     private val store = context.dataStore
@@ -58,11 +58,7 @@ class SettingsStore(context: Context) {
 
     suspend fun setRuleEnabled(rule: Rule, enabled: Boolean) {
         if (!rule.isDefault) return saveRule(rule.copy(enabled = enabled))
-        val shipped = DefaultRules.first { it.id == rule.id }.enabled
-        store.edit {
-            val toggled = it.toggledDefaults()
-            it[TOGGLED_DEFAULTS] = if (enabled == shipped) toggled - rule.id else toggled + rule.id
-        }
+        store.edit { it[DEFAULT_OVERRIDES] = encodeOverrides(it.defaultOverrides() + (rule.id to enabled)) }
     }
 
     suspend fun setBlockUnknown(enabled: Boolean) {
@@ -78,10 +74,7 @@ class SettingsStore(context: Context) {
     }
 
     private suspend fun updateRules(transform: (List<Rule>) -> List<Rule>) {
-        store.edit {
-            it[TOGGLED_DEFAULTS] = it.toggledDefaults()
-            it[RULES] = encodeRules(transform(it.customRules()))
-        }
+        store.edit { it[RULES] = encodeRules(transform(it.customRules())) }
     }
 }
 
@@ -89,15 +82,15 @@ private fun Preferences.storedRules(): List<Rule> = this[RULES]?.let(::decodeRul
 
 private fun Preferences.customRules(): List<Rule> = storedRules().filterNot { it.isDefault }
 
-// Older versions stored full copies of the default rules; carry over their on/off state.
-private fun Preferences.toggledDefaults(): Set<String> = this[TOGGLED_DEFAULTS] ?: storedRules()
-    .filter { stored -> stored.isDefault && DefaultRules.any { it.id == stored.id && it.enabled != stored.enabled } }
-    .map { it.id }
-    .toSet()
+private fun Preferences.defaultOverrides(): Map<String, Boolean> =
+    this[DEFAULT_OVERRIDES].orEmpty().associate { it.substringBefore('=') to (it.substringAfter('=') == "true") }
+
+private fun encodeOverrides(overrides: Map<String, Boolean>): Set<String> =
+    overrides.map { (id, enabled) -> "$id=$enabled" }.toSet()
 
 private fun Preferences.rules(): List<Rule> {
-    val toggled = toggledDefaults()
-    return DefaultRules.map { if (it.id in toggled) it.copy(enabled = !it.enabled) else it } + customRules()
+    val overrides = defaultOverrides()
+    return DefaultRules.map { rule -> overrides[rule.id]?.let { rule.copy(enabled = it) } ?: rule } + customRules()
 }
 
 private fun encodeRules(rules: List<Rule>): String = JSONArray().apply {
