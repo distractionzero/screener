@@ -105,6 +105,6 @@ private fun stringify(value: Any?): Any = when {
     value == null -> JSONObject.NULL
     value is Bundle -> value.toJson()
     value.javaClass.isArray -> (0 until java.lang.reflect.Array.getLength(value))
-        .joinToString(prefix = "[", postfix = "]") { java.lang.reflect.Array.get(value, it).toString() }
+        .joinToString(prefix = "[", postfix = "]") { stringify(java.lang.reflect.Array.get(value, it)).toString() }
     else -> value.toString()
 }
