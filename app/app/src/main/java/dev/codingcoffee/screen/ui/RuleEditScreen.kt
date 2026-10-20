@@ -46,8 +46,14 @@ import dev.codingcoffee.screen.app
 import dev.codingcoffee.screen.rules.Rule
 import dev.codingcoffee.screen.rules.RuleAction
 import dev.codingcoffee.screen.rules.RuleType
+import dev.codingcoffee.screen.rules.SimpleMatch
+import dev.codingcoffee.screen.rules.SimpleRule
 import dev.codingcoffee.screen.rules.compilePattern
+import dev.codingcoffee.screen.rules.describe
+import dev.codingcoffee.screen.rules.isValid
 import dev.codingcoffee.screen.rules.normalizeNumber
+import dev.codingcoffee.screen.rules.parseSimple
+import dev.codingcoffee.screen.rules.toPattern
 import kotlinx.coroutines.launch
 import java.util.UUID
 import java.util.regex.PatternSyntaxException
@@ -57,14 +63,22 @@ import java.util.regex.PatternSyntaxException
 fun RuleEditScreen(id: String?, initialPattern: String?, initialName: String?, onDone: () -> Unit) {
     val app = LocalContext.current.app
     val existing = remember(id) { app.settings.value?.rules?.find { it.id == id } }
+    val startPattern = existing?.pattern ?: initialPattern.orEmpty()
+    val startType = existing?.type ?: RuleType.NUMBER
+    val parsed = remember { parseSimple(startType, startPattern) }
 
+    var advanced by rememberSaveable { mutableStateOf(startPattern.isNotEmpty() && parsed == null) }
     var name by rememberSaveable { mutableStateOf(existing?.name ?: initialName.orEmpty()) }
-    var type by rememberSaveable { mutableStateOf(existing?.type ?: RuleType.NUMBER) }
+    var type by rememberSaveable { mutableStateOf(startType) }
     var action by rememberSaveable { mutableStateOf(existing?.action ?: RuleAction.BLOCK) }
-    var pattern by rememberSaveable { mutableStateOf(existing?.pattern ?: initialPattern.orEmpty()) }
+    var pattern by rememberSaveable { mutableStateOf(startPattern) }
+    var match by rememberSaveable { mutableStateOf(parsed?.match ?: SimpleMatch.STARTS_WITH) }
+    var value by rememberSaveable { mutableStateOf(parsed?.value.orEmpty()) }
     var sample by rememberSaveable { mutableStateOf("") }
 
-    val regex = remember(pattern) { compilePattern(pattern) }
+    val simple = SimpleRule(match, value)
+    val effectivePattern = if (advanced) pattern else simple.takeIf { it.isValid() }?.toPattern().orEmpty()
+    val regex = remember(effectivePattern) { compilePattern(effectivePattern) }
     val patternError = regex.exceptionOrNull()?.let {
         if (it is PatternSyntaxException) {
             if (it.index >= 0) "${it.description} near position ${it.index + 1}" else it.description
@@ -72,8 +86,22 @@ fun RuleEditScreen(id: String?, initialPattern: String?, initialName: String?, o
             it.message ?: "Invalid pattern"
         }
     }
-    val canSave = name.isNotBlank() && pattern.isNotBlank() && patternError == null
+    val canSave = effectivePattern.isNotBlank() && patternError == null
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+
+    fun switchMode(toAdvanced: Boolean) {
+        if (toAdvanced && simple.isValid()) pattern = simple.toPattern()
+        if (!toAdvanced) parseSimple(type, pattern)?.let { match = it.match; value = it.value }
+        if (!toAdvanced && type == RuleType.CALLER_NAME) match = SimpleMatch.CONTAINS_ANY
+        advanced = toAdvanced
+    }
+
+    fun changeType(newType: RuleType) {
+        if (newType == type) return
+        type = newType
+        match = if (newType == RuleType.CALLER_NAME) SimpleMatch.CONTAINS_ANY else SimpleMatch.STARTS_WITH
+        value = ""
+    }
 
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
@@ -87,11 +115,12 @@ fun RuleEditScreen(id: String?, initialPattern: String?, initialName: String?, o
                     TextButton(
                         enabled = canSave,
                         onClick = {
+                            val fallbackName = if (advanced) effectivePattern else simple.describe()
                             val rule = Rule(
                                 id = existing?.id ?: UUID.randomUUID().toString(),
-                                name = name.trim(),
+                                name = name.trim().ifEmpty { fallbackName },
                                 type = type,
-                                pattern = pattern,
+                                pattern = effectivePattern,
                                 action = action,
                                 enabled = existing?.enabled ?: true,
                             )
@@ -114,60 +143,88 @@ fun RuleEditScreen(id: String?, initialPattern: String?, initialName: String?, o
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
+            Choice(
+                label = null,
+                options = listOf(false to "Simple", true to "Advanced"),
+                selected = advanced,
+                onSelect = ::switchMode,
+            )
+            Choice(
+                label = "Action",
+                options = listOf(RuleAction.BLOCK to "Block", RuleAction.ALLOW to "Allow"),
+                selected = action,
+                onSelect = { action = it },
+            )
+            Choice(
+                label = "Match on",
+                options = listOf(RuleType.NUMBER to "Number", RuleType.CALLER_NAME to "Caller name"),
+                selected = type,
+                onSelect = ::changeType,
+            )
+
+            if (advanced) {
+                OutlinedTextField(
+                    value = pattern,
+                    onValueChange = { pattern = it },
+                    label = { Text("Pattern (regex)") },
+                    singleLine = true,
+                    isError = patternError != null,
+                    textStyle = LocalTextStyle.current.copy(fontFamily = FontFamily.Monospace),
+                    keyboardOptions = KeyboardOptions(autoCorrectEnabled = false, keyboardType = KeyboardType.Ascii),
+                    supportingText = {
+                        Text(
+                            patternError ?: if (type == RuleType.NUMBER) {
+                                "Matched against the number with spaces, dashes and brackets removed, e.g. +911409806457."
+                            } else {
+                                "Matched against the caller name your carrier sends, if any. Use (?i) to ignore case."
+                            }
+                        )
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            } else if (type == RuleType.NUMBER) {
+                Choice(
+                    label = "Number",
+                    options = listOf(SimpleMatch.STARTS_WITH to "Starts with", SimpleMatch.EXACTLY to "Is exactly"),
+                    selected = match,
+                    onSelect = { match = it },
+                )
+                OutlinedTextField(
+                    value = value,
+                    onValueChange = { value = it },
+                    label = { Text(if (match == SimpleMatch.STARTS_WITH) "Starting digits" else "Phone number") },
+                    placeholder = { Text(if (match == SimpleMatch.STARTS_WITH) "140" else "98765 43210") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                    supportingText = { Text("No need to add +91 or a leading 0. Both are matched automatically.") },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            } else {
+                OutlinedTextField(
+                    value = value,
+                    onValueChange = { value = it },
+                    label = { Text("Caller name contains") },
+                    placeholder = { Text("spam, fraud") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(autoCorrectEnabled = false),
+                    supportingText = {
+                        Text("Separate words with commas. Case doesn't matter. Only works if your carrier sends a name.")
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+
             OutlinedTextField(
                 value = name,
                 onValueChange = { name = it },
-                label = { Text("Name") },
+                label = { Text("Name (optional)") },
+                placeholder = { Text(if (advanced) "My rule" else simple.takeIf { it.isValid() }?.describe() ?: "My rule") },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
                 modifier = Modifier.fillMaxWidth(),
             )
 
-            Labeled("Match on") {
-                SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                    RuleType.entries.forEachIndexed { i, option ->
-                        SegmentedButton(
-                            selected = type == option,
-                            onClick = { type = option },
-                            shape = SegmentedButtonDefaults.itemShape(i, RuleType.entries.size),
-                        ) { Text(if (option == RuleType.NUMBER) "Number" else "Caller name") }
-                    }
-                }
-            }
-
-            Labeled("Action") {
-                SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                    RuleAction.entries.forEachIndexed { i, option ->
-                        SegmentedButton(
-                            selected = action == option,
-                            onClick = { action = option },
-                            shape = SegmentedButtonDefaults.itemShape(i, RuleAction.entries.size),
-                        ) { Text(if (option == RuleAction.ALLOW) "Allow" else "Block") }
-                    }
-                }
-            }
-
-            OutlinedTextField(
-                value = pattern,
-                onValueChange = { pattern = it },
-                label = { Text("Pattern (regex)") },
-                singleLine = true,
-                isError = patternError != null,
-                textStyle = LocalTextStyle.current.copy(fontFamily = FontFamily.Monospace),
-                keyboardOptions = KeyboardOptions(autoCorrectEnabled = false, keyboardType = KeyboardType.Ascii),
-                supportingText = {
-                    Text(
-                        patternError ?: if (type == RuleType.NUMBER) {
-                            "Matched against the number with spaces, dashes and brackets removed, e.g. +911409806457."
-                        } else {
-                            "Matched against the caller name your carrier sends, if any. Use (?i) to ignore case."
-                        }
-                    )
-                },
-                modifier = Modifier.fillMaxWidth(),
-            )
-
-            val testResult = regex.getOrNull()?.takeIf { sample.isNotBlank() }?.let {
+            val testResult = regex.getOrNull()?.takeIf { sample.isNotBlank() && effectivePattern.isNotEmpty() }?.let {
                 val subject = if (type == RuleType.NUMBER) normalizeNumber(sample).orEmpty() else sample
                 it.containsMatchIn(subject)
             }
@@ -185,7 +242,7 @@ fun RuleEditScreen(id: String?, initialPattern: String?, initialName: String?, o
                         text = when (testResult) {
                             true -> "Match"
                             false -> "No match"
-                            null -> "Type a sample to check your pattern."
+                            null -> "Type a sample to check your rule."
                         },
                         color = when (testResult) {
                             true -> MaterialTheme.colorScheme.primary
@@ -201,9 +258,19 @@ fun RuleEditScreen(id: String?, initialPattern: String?, initialName: String?, o
 }
 
 @Composable
-private fun Labeled(label: String, content: @Composable () -> Unit) {
+private fun <T> Choice(label: String?, options: List<Pair<T, String>>, selected: T, onSelect: (T) -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        content()
+        if (label != null) {
+            Text(label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+            options.forEachIndexed { i, (option, text) ->
+                SegmentedButton(
+                    selected = selected == option,
+                    onClick = { onSelect(option) },
+                    shape = SegmentedButtonDefaults.itemShape(i, options.size),
+                ) { Text(text) }
+            }
+        }
     }
 }

@@ -53,7 +53,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.codingcoffee.screen.app
 import dev.codingcoffee.screen.data.LogEntry
 import dev.codingcoffee.screen.data.str
+import dev.codingcoffee.screen.rules.SimpleMatch
+import dev.codingcoffee.screen.rules.SimpleRule
 import dev.codingcoffee.screen.rules.escapeRegex
+import dev.codingcoffee.screen.rules.toPattern
 import kotlinx.coroutines.launch
 import java.text.DateFormat
 import java.util.Date
@@ -103,7 +106,7 @@ fun LogDetailScreen(id: String?, onBack: () -> Unit, onCreateRule: (pattern: Str
             }
             entry.number?.let { number ->
                 FilledTonalButton(
-                    onClick = { onCreateRule("^${escapeRegex(number)}$", formatNumber(number)) },
+                    onClick = { onCreateRule(exactNumberPattern(number), formatNumber(number)) },
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Icon(Icons.Rounded.Add, contentDescription = null, modifier = Modifier.size(18.dp))
@@ -181,3 +184,7 @@ private fun keyFields(entry: LogEntry): List<Pair<String, String>> {
         json.str("accountHandleId")?.let { "SIM account" to it },
     )
 }
+
+private fun exactNumberPattern(number: String): String =
+    if (number.startsWith("+") && !number.startsWith("+91")) "^${escapeRegex(number)}$"
+    else SimpleRule(SimpleMatch.EXACTLY, number).toPattern()

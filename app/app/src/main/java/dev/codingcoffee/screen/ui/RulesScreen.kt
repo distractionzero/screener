@@ -56,6 +56,8 @@ import dev.codingcoffee.screen.app
 import dev.codingcoffee.screen.rules.Rule
 import dev.codingcoffee.screen.rules.RuleAction
 import dev.codingcoffee.screen.rules.RuleType
+import dev.codingcoffee.screen.rules.describe
+import dev.codingcoffee.screen.rules.parseSimple
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -197,7 +199,13 @@ private fun RuleRow(rule: Rule, onClick: () -> Unit, onToggle: (Boolean) -> Unit
                 headlineContent = { Text(rule.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 overlineContent = { Text(if (rule.type == RuleType.NUMBER) "Number" else "Caller name") },
                 supportingContent = {
-                    Text(rule.pattern, fontFamily = FontFamily.Monospace, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    val simple = remember(rule.type, rule.pattern) { parseSimple(rule.type, rule.pattern) }
+                    Text(
+                        simple?.describe() ?: rule.pattern,
+                        fontFamily = if (simple == null) FontFamily.Monospace else null,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
                 },
                 trailingContent = {
                     Switch(
