@@ -72,3 +72,69 @@ To pull the raw log from a debug build:
 ```sh
 adb shell run-as dev.codingcoffee.screen cat files/call_log.jsonl
 ```
+
+## Release build
+
+### Signing key (once)
+
+```sh
+keytool -genkeypair -v -keystore ~/.android/screen-release.jks \
+  -alias screen -keyalg RSA -keysize 4096 -validity 10000
+```
+
+Back up the keystore. Updates must be signed with the same key; losing it means uninstalling, which wipes
+rules and the call log.
+
+Add the credentials to `~/.gradle/gradle.properties` (user-level, never the repo), then
+`chmod 600 ~/.gradle/gradle.properties`:
+
+```properties
+SCREEN_STORE_FILE=/home/<you>/.android/screen-release.jks
+SCREEN_STORE_PASSWORD=<password>
+SCREEN_KEY_ALIAS=screen
+SCREEN_KEY_PASSWORD=<password>
+```
+
+Use an absolute path; Gradle doesn't expand `~`. Without these properties the release APK is built unsigned.
+
+### Build and verify
+
+```sh
+nix develop
+cd app
+./gradlew assembleRelease
+$ANDROID_HOME/build-tools/36.0.0/apksigner verify --print-certs app/build/outputs/apk/release/app-release.apk
+```
+
+The output is `app/build/outputs/apk/release/app-release.apk`. If it's named `app-release-unsigned.apk`, the
+signing properties weren't picked up.
+
+### Install and run on the emulator
+
+Debug and release builds are signed with different keys, so uninstall the debug build first. This wipes the
+app's data.
+
+```sh
+adb -s emulator-5554 uninstall dev.codingcoffee.screen
+adb -s emulator-5554 install -r app/build/outputs/apk/release/app-release.apk
+adb -s emulator-5554 shell am start -n dev.codingcoffee.screen/.MainActivity
+```
+
+Later release builds install over the previous one with `adb install -r`, keeping data.
+
+### Install on a phone
+
+With USB debugging on: `adb install -r app/build/outputs/apk/release/app-release.apk`. Or copy the APK to the
+phone and open it, allowing "Install unknown apps" when asked. If granting the call screening role is
+blocked as a restricted setting, go to Settings → Apps → Screen → ⋮ → Allow restricted settings.
+
+### Debugging a release crash
+
+```sh
+adb logcat -c
+adb shell am start -n dev.codingcoffee.screen/.MainActivity
+adb logcat -d -b crash
+```
+
+R8 obfuscates class names. Map them back with `app/build/outputs/mapping/release/mapping.txt` from the same
+build. `run-as` doesn't work on release builds; use the Copy button in Log detail to get raw entries.
