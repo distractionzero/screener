@@ -8,9 +8,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.PersonOff
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -42,6 +44,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
@@ -97,18 +100,46 @@ fun RulesScreen(onEdit: (String) -> Unit, onAdd: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             ruleSection(
-                title = "Allow",
-                emptyText = "No allow rules. Allow rules are checked first and always let a call through.",
-                rules = rules.filter { it.action == RuleAction.ALLOW },
-                onEdit = onEdit, onToggle = onToggle, onDelete = onDelete,
-            )
-            ruleSection(
                 title = "Block",
                 emptyText = "No block rules yet. Tap + to add one.",
                 rules = rules.filter { it.action == RuleAction.BLOCK },
                 onEdit = onEdit, onToggle = onToggle, onDelete = onDelete,
             )
+            item(key = "header-unknown") { SectionHeader("Everyone else") }
+            item(key = "block-unknown") {
+                BlockUnknownRow(
+                    enabled = settings?.blockUnknown ?: false,
+                    onChange = { enabled -> app.scope.launch { app.settingsStore.setBlockUnknown(enabled) } },
+                )
+            }
+            ruleSection(
+                title = "Allow",
+                emptyText = "No allow rules. Allow rules are checked first and always let a call through.",
+                rules = rules.filter { it.action == RuleAction.ALLOW },
+                onEdit = onEdit, onToggle = onToggle, onDelete = onDelete,
+            )
         }
+    }
+}
+
+@Composable
+private fun BlockUnknownRow(enabled: Boolean, onChange: (Boolean) -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    TonalCard {
+        ListItem(
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+            modifier = Modifier.toggleable(value = enabled, role = Role.Switch, onValueChange = onChange),
+            leadingContent = { Icon(Icons.Rounded.PersonOff, contentDescription = null) },
+            headlineContent = { Text("Block all unknown callers") },
+            supportingContent = {
+                Text(
+                    "Rejects every call from a number not in your contacts, unless an allow rule matches. " +
+                        "This also blocks delivery agents, doctors, and anyone new.",
+                    color = if (enabled) colors.error else colors.onSurfaceVariant,
+                )
+            },
+            trailingContent = { Switch(checked = enabled, onCheckedChange = null) },
+        )
     }
 }
 

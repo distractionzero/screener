@@ -7,13 +7,11 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.DeleteSweep
 import androidx.compose.material.icons.rounded.Lightbulb
 import androidx.compose.material.icons.rounded.Lock
-import androidx.compose.material.icons.rounded.PersonOff
 import androidx.compose.material.icons.rounded.Shield
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -23,7 +21,6 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
@@ -37,7 +34,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.codingcoffee.screen.app
@@ -48,10 +44,8 @@ import kotlinx.coroutines.launch
 fun SettingsScreen() {
     val context = LocalContext.current
     val app = context.app
-    val settings by app.settings.collectAsStateWithLifecycle()
     val entries by app.callLog.entries.collectAsStateWithLifecycle()
     val roleHeld = rememberRoleHeld()
-    val blockUnknown = settings?.blockUnknown ?: false
     var confirmClear by rememberSaveable { mutableStateOf(false) }
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val colors = MaterialTheme.colorScheme
@@ -69,24 +63,6 @@ fun SettingsScreen() {
         ) {
             SectionHeader("Screening")
             TonalCard {
-                ListItem(
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                    modifier = Modifier.toggleable(
-                        value = blockUnknown,
-                        role = Role.Switch,
-                        onValueChange = { enabled -> app.scope.launch { app.settingsStore.setBlockUnknown(enabled) } },
-                    ),
-                    leadingContent = { Icon(Icons.Rounded.PersonOff, contentDescription = null) },
-                    headlineContent = { Text("Block all unknown callers") },
-                    supportingContent = {
-                        Text(
-                            "Rejects every call from a number not in your contacts, unless an allow rule matches. " +
-                                "This also blocks delivery agents, doctors, and anyone new.",
-                            color = if (blockUnknown) colors.error else colors.onSurfaceVariant,
-                        )
-                    },
-                    trailingContent = { Switch(checked = blockUnknown, onCheckedChange = null) },
-                )
                 ListItem(
                     colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                     modifier = Modifier.clickable(onClickLabel = "Open system settings") {
