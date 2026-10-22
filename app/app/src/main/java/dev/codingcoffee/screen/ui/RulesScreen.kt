@@ -172,19 +172,19 @@ private fun LazyListScope.ruleSection(
 
 @Composable
 private fun RuleRow(rule: Rule, onClick: () -> Unit, onToggle: (Boolean) -> Unit, onDelete: () -> Unit) {
+    val colors = MaterialTheme.colorScheme
     if (rule.isDefault) {
-        TonalCard {
-            RuleListItem(
-                rule = rule,
-                modifier = Modifier.toggleable(value = rule.enabled, role = Role.Switch, onValueChange = onToggle),
-                onToggle = null,
-            )
+        Card(
+            onClick = onClick,
+            shape = CardShape,
+            colors = CardDefaults.cardColors(containerColor = colors.surfaceContainer),
+        ) {
+            RuleListItem(rule = rule, onToggle = onToggle)
         }
         return
     }
 
     val dismissState = rememberSwipeToDismissBoxState()
-    val colors = MaterialTheme.colorScheme
 
     SwipeToDismissBox(
         state = dismissState,
@@ -212,11 +212,10 @@ private fun RuleRow(rule: Rule, onClick: () -> Unit, onToggle: (Boolean) -> Unit
 }
 
 @Composable
-private fun RuleListItem(rule: Rule, onToggle: ((Boolean) -> Unit)?, modifier: Modifier = Modifier) {
+private fun RuleListItem(rule: Rule, onToggle: (Boolean) -> Unit) {
     val kind = if (rule.type == RuleType.NUMBER) "Number" else "Caller name"
     ListItem(
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-        modifier = modifier,
         headlineContent = { Text(rule.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
         overlineContent = { Text(if (rule.isDefault) "$kind · Built-in" else kind) },
         supportingContent = {

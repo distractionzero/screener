@@ -2,19 +2,26 @@ package dev.codingcoffee.screen.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MediumTopAppBar
@@ -23,6 +30,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
@@ -32,16 +41,20 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.codingcoffee.screen.app
 import dev.codingcoffee.screen.rules.Rule
 import dev.codingcoffee.screen.rules.RuleAction
@@ -50,6 +63,7 @@ import dev.codingcoffee.screen.rules.SimpleMatch
 import dev.codingcoffee.screen.rules.SimpleRule
 import dev.codingcoffee.screen.rules.compilePattern
 import dev.codingcoffee.screen.rules.describe
+import dev.codingcoffee.screen.rules.isDefault
 import dev.codingcoffee.screen.rules.isValid
 import dev.codingcoffee.screen.rules.normalizeNumber
 import dev.codingcoffee.screen.rules.parseSimple
@@ -63,6 +77,10 @@ import java.util.regex.PatternSyntaxException
 fun RuleEditScreen(id: String?, initialPattern: String?, initialName: String?, onDone: () -> Unit) {
     val app = LocalContext.current.app
     val existing = remember(id) { app.settings.value?.rules?.find { it.id == id } }
+    if (existing != null && existing.isDefault) {
+        BuiltInRuleScreen(existing.id, onDone)
+        return
+    }
     val startPattern = existing?.pattern ?: initialPattern.orEmpty()
     val startType = existing?.type ?: RuleType.NUMBER
     val parsed = remember { parseSimple(startType, startPattern) }
@@ -253,6 +271,87 @@ fun RuleEditScreen(id: String?, initialPattern: String?, initialName: String?, o
                 },
                 modifier = Modifier.fillMaxWidth(),
             )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun BuiltInRuleScreen(id: String, onBack: () -> Unit) {
+    val app = LocalContext.current.app
+    val settings by app.settings.collectAsStateWithLifecycle()
+    val rule = settings?.rules?.find { it.id == id }
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val colors = MaterialTheme.colorScheme
+
+    Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+        topBar = {
+            MediumTopAppBar(
+                title = { Text(rule?.name ?: "Built-in rule") },
+                navigationIcon = {
+                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back") }
+                },
+                scrollBehavior = scrollBehavior,
+            )
+        },
+    ) { padding ->
+        if (rule == null) return@Scaffold
+        val simple = remember(rule.type, rule.pattern) { parseSimple(rule.type, rule.pattern) }
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Surface(shape = CardShape, color = colors.secondaryContainer, modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(Icons.Rounded.Lock, contentDescription = null, tint = colors.onSecondaryContainer)
+                    Text(
+                        "This is a built-in rule, so it's read-only. It can't be edited or deleted, only turned off.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = colors.onSecondaryContainer,
+                    )
+                }
+            }
+            TonalCard {
+                ListItem(
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                    modifier = Modifier.toggleable(
+                        value = rule.enabled,
+                        role = Role.Switch,
+                        onValueChange = { enabled -> app.scope.launch { app.settingsStore.setRuleEnabled(rule, enabled) } },
+                    ),
+                    headlineContent = { Text("Enabled") },
+                    trailingContent = { Switch(checked = rule.enabled, onCheckedChange = null) },
+                )
+            }
+            TonalCard {
+                Column(Modifier.padding(vertical = 8.dp)) {
+                    listOfNotNull(
+                        "Action" to if (rule.action == RuleAction.BLOCK) "Block" else "Allow",
+                        "Match on" to if (rule.type == RuleType.NUMBER) "Number" else "Caller name",
+                        simple?.let { "Matches" to it.describe() },
+                    ).forEach { (label, value) ->
+                        ListItem(
+                            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                            overlineContent = { Text(label) },
+                            headlineContent = { Text(value) },
+                        )
+                    }
+                    ListItem(
+                        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                        overlineContent = { Text("Pattern (regex)") },
+                        headlineContent = { SelectionContainer { Text(rule.pattern, fontFamily = FontFamily.Monospace) } },
+                    )
+                }
+            }
         }
     }
 }
