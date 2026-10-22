@@ -133,7 +133,7 @@ fun ActivityScreen(onOpenEntry: (String) -> Unit) {
                     )
                 }
                 else -> items(visible, key = { it.id }) { entry ->
-                    val number = entry.number?.takeUnless { spamKey(it) in spamNumbers }
+                    val number = entry.number?.takeUnless { entry.blocked || spamKey(it) in spamNumbers }
                     CallRow(
                         entry,
                         onClick = { onOpenEntry(entry.id) },

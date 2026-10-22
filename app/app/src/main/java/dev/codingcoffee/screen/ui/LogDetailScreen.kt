@@ -119,15 +119,17 @@ fun LogDetailScreen(id: String?, onBack: () -> Unit, onCreateRule: (pattern: Str
                     Spacer(Modifier.size(8.dp))
                     Text("Create rule from this number")
                 }
-                val marked = spamKey(number) in settings?.spamNumbers.orEmpty()
-                OutlinedButton(
-                    onClick = { scope.markSpam(app, number, snackbar) },
-                    enabled = !marked,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Icon(Icons.Rounded.Report, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.size(8.dp))
-                    Text(if (marked) "Marked as spam" else "Mark as spam")
+                if (!entry.blocked) {
+                    val marked = spamKey(number) in settings?.spamNumbers.orEmpty()
+                    OutlinedButton(
+                        onClick = { scope.markSpam(app, number, snackbar) },
+                        enabled = !marked,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Icon(Icons.Rounded.Report, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.size(8.dp))
+                        Text(if (marked) "Marked as spam" else "Mark as spam")
+                    }
                 }
             }
             RawJson(entry, snackbar)

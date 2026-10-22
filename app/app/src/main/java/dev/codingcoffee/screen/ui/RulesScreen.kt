@@ -19,6 +19,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
@@ -209,7 +210,20 @@ private fun RuleRow(rule: Rule, onClick: () -> Unit, onToggle: (Boolean) -> Unit
         return
     }
 
-    SwipeToDelete(onDelete) {
+    val dismissState = rememberSwipeToDismissBoxState()
+
+    SwipeToDismissBox(
+        state = dismissState,
+        enableDismissFromStartToEnd = false,
+        onDismiss = { if (it == SwipeToDismissBoxValue.EndToStart) onDelete() },
+        backgroundContent = {
+            Surface(color = colors.errorContainer, shape = CardShape, modifier = Modifier.fillMaxSize()) {
+                Box(Modifier.padding(end = 24.dp), contentAlignment = Alignment.CenterEnd) {
+                    Icon(Icons.Rounded.Delete, contentDescription = null, tint = colors.onErrorContainer)
+                }
+            }
+        },
+    ) {
         Card(
             onClick = onClick,
             shape = CardShape,
@@ -225,39 +239,19 @@ private fun RuleRow(rule: Rule, onClick: () -> Unit, onToggle: (Boolean) -> Unit
 
 @Composable
 private fun SpamNumberRow(key: String, onDelete: () -> Unit) {
-    SwipeToDelete(onDelete) {
-        TonalCard(
-            Modifier.semantics {
-                customActions = listOf(CustomAccessibilityAction("Remove") { onDelete(); true })
-            },
-        ) {
-            ListItem(
-                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                leadingContent = { Icon(Icons.Rounded.Report, contentDescription = null) },
-                headlineContent = { Text(formatNumber(key)) },
-                supportingContent = { Text("Marked as spam") },
-            )
-        }
-    }
-}
-
-@Composable
-private fun SwipeToDelete(onDelete: () -> Unit, content: @Composable () -> Unit) {
-    val dismissState = rememberSwipeToDismissBoxState()
-    val colors = MaterialTheme.colorScheme
-
-    SwipeToDismissBox(
-        state = dismissState,
-        enableDismissFromStartToEnd = false,
-        onDismiss = { if (it == SwipeToDismissBoxValue.EndToStart) onDelete() },
-        backgroundContent = {
-            Surface(color = colors.errorContainer, shape = CardShape, modifier = Modifier.fillMaxSize()) {
-                Box(Modifier.padding(end = 24.dp), contentAlignment = Alignment.CenterEnd) {
-                    Icon(Icons.Rounded.Delete, contentDescription = null, tint = colors.onErrorContainer)
+    TonalCard {
+        ListItem(
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+            leadingContent = { Icon(Icons.Rounded.Report, contentDescription = null) },
+            headlineContent = { Text(formatNumber(key)) },
+            supportingContent = { Text("Marked as spam") },
+            trailingContent = {
+                IconButton(onClick = onDelete) {
+                    Icon(Icons.Rounded.Delete, contentDescription = "Remove ${formatNumber(key)} from spam numbers")
                 }
-            }
-        },
-    ) { content() }
+            },
+        )
+    }
 }
 
 @Composable
