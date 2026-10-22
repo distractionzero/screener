@@ -41,7 +41,7 @@ class ScreenApp : Application() {
             }
             .stateIn(scope, SharingStarted.Eagerly, null)
         engine = settings.filterNotNull()
-            .map { RuleEngine(it.rules, it.blockUnknown) }
+            .map { RuleEngine(it.rules, it.blockUnknown, it.spamNumbers) }
             .stateIn(scope, SharingStarted.Eagerly, null)
     }
 

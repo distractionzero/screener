@@ -13,6 +13,7 @@ import androidx.compose.material.icons.rounded.Block
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Call
+import androidx.compose.material.icons.rounded.Report
 import androidx.compose.material.icons.rounded.Warning
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -20,17 +21,21 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -44,7 +49,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.codingcoffee.screen.app
 import dev.codingcoffee.screen.data.LogEntry
 import dev.codingcoffee.screen.rules.REASON_NONE
+import dev.codingcoffee.screen.rules.REASON_SPAM
 import dev.codingcoffee.screen.rules.REASON_UNKNOWN
+import dev.codingcoffee.screen.rules.spamKey
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -59,6 +66,10 @@ private enum class Filter(val label: String) { ALL("All"), BLOCKED("Blocked"), A
 fun ActivityScreen(onOpenEntry: (String) -> Unit) {
     val app = LocalContext.current.app
     val entries by app.callLog.entries.collectAsStateWithLifecycle()
+    val settings by app.settings.collectAsStateWithLifecycle()
+    val spamNumbers = settings?.spamNumbers.orEmpty()
+    val scope = rememberCoroutineScope()
+    val snackbar = remember { SnackbarHostState() }
     val roleHeld = rememberRoleHeld()
     var filter by rememberSaveable { mutableStateOf(Filter.ALL) }
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
@@ -77,6 +88,7 @@ fun ActivityScreen(onOpenEntry: (String) -> Unit) {
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = { LargeTopAppBar(title = { Text("Activity") }, scrollBehavior = scrollBehavior) },
+        snackbarHost = { SnackbarHost(snackbar) },
     ) { padding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
@@ -121,7 +133,12 @@ fun ActivityScreen(onOpenEntry: (String) -> Unit) {
                     )
                 }
                 else -> items(visible, key = { it.id }) { entry ->
-                    CallRow(entry, onClick = { onOpenEntry(entry.id) })
+                    val number = entry.number?.takeUnless { spamKey(it) in spamNumbers }
+                    CallRow(
+                        entry,
+                        onClick = { onOpenEntry(entry.id) },
+                        onMarkSpam = number?.let { { scope.markSpam(app, it, snackbar) } },
+                    )
                 }
             }
         }
@@ -187,10 +204,11 @@ private fun blockedCounts(entries: List<LogEntry>): Pair<Int, Int> {
 }
 
 @Composable
-private fun CallRow(entry: LogEntry, onClick: () -> Unit) {
+private fun CallRow(entry: LogEntry, onClick: () -> Unit, onMarkSpam: (() -> Unit)?) {
     val colors = MaterialTheme.colorScheme
     val label = when {
         entry.reason == REASON_UNKNOWN -> "Unknown caller"
+        entry.reason == REASON_SPAM -> "Marked as spam"
         entry.reason != REASON_NONE && entry.reason.isNotBlank() -> entry.reason
         else -> entry.callerName?.takeIf { it.isNotBlank() }
     }
@@ -214,6 +232,9 @@ private fun CallRow(entry: LogEntry, onClick: () -> Unit) {
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
+            },
+            trailingContent = if (onMarkSpam == null) null else {
+                { IconButton(onClick = onMarkSpam) { Icon(Icons.Rounded.Report, contentDescription = "Mark as spam") } }
             },
         )
     }

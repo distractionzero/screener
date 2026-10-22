@@ -22,6 +22,9 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -41,6 +44,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import androidx.lifecycle.compose.LifecycleResumeEffect
+import dev.codingcoffee.screen.ScreenApp
+import dev.codingcoffee.screen.rules.spamKey
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 
 fun isRoleHeld(context: Context): Boolean =
     context.getSystemService(RoleManager::class.java).isRoleHeld(RoleManager.ROLE_CALL_SCREENING)
@@ -88,6 +95,16 @@ fun formatNumber(number: String?): String =
 
 fun relativeTime(timestamp: Long): String =
     DateUtils.getRelativeTimeSpanString(timestamp, System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS).toString()
+
+fun CoroutineScope.markSpam(app: ScreenApp, number: String, snackbar: SnackbarHostState) {
+    val key = spamKey(number)
+    app.scope.launch { app.settingsStore.addSpamNumber(key) }
+    launch {
+        snackbar.currentSnackbarData?.dismiss()
+        val result = snackbar.showSnackbar("Marked ${formatNumber(number)} as spam", "Undo", duration = SnackbarDuration.Short)
+        if (result == SnackbarResult.ActionPerformed) app.settingsStore.removeSpamNumber(key)
+    }
+}
 
 val CardShape = RoundedCornerShape(24.dp)
 

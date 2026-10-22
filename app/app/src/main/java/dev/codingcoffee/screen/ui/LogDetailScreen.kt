@@ -21,6 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.ContentCopy
+import androidx.compose.material.icons.rounded.Report
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
@@ -29,6 +30,7 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MediumTopAppBar
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -56,6 +58,7 @@ import dev.codingcoffee.screen.data.str
 import dev.codingcoffee.screen.rules.SimpleMatch
 import dev.codingcoffee.screen.rules.SimpleRule
 import dev.codingcoffee.screen.rules.escapeRegex
+import dev.codingcoffee.screen.rules.spamKey
 import dev.codingcoffee.screen.rules.toPattern
 import kotlinx.coroutines.launch
 import java.text.DateFormat
@@ -64,8 +67,11 @@ import java.util.Date
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LogDetailScreen(id: String?, onBack: () -> Unit, onCreateRule: (pattern: String, name: String) -> Unit) {
-    val entries by LocalContext.current.app.callLog.entries.collectAsStateWithLifecycle()
+    val app = LocalContext.current.app
+    val entries by app.callLog.entries.collectAsStateWithLifecycle()
     val entry = entries?.find { it.id == id }
+    val settings by app.settings.collectAsStateWithLifecycle()
+    val scope = rememberCoroutineScope()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val snackbar = remember { SnackbarHostState() }
 
@@ -112,6 +118,16 @@ fun LogDetailScreen(id: String?, onBack: () -> Unit, onCreateRule: (pattern: Str
                     Icon(Icons.Rounded.Add, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.size(8.dp))
                     Text("Create rule from this number")
+                }
+                val marked = spamKey(number) in settings?.spamNumbers.orEmpty()
+                OutlinedButton(
+                    onClick = { scope.markSpam(app, number, snackbar) },
+                    enabled = !marked,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Icon(Icons.Rounded.Report, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.size(8.dp))
+                    Text(if (marked) "Marked as spam" else "Mark as spam")
                 }
             }
             RawJson(entry, snackbar)

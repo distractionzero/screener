@@ -24,6 +24,7 @@ data class Settings(
     val blockUnknown: Boolean,
     val onboarded: Boolean,
     val theme: ThemeMode = ThemeMode.SYSTEM,
+    val spamNumbers: Set<String> = emptySet(),
 )
 
 private val Context.dataStore by preferencesDataStore(name = "settings")
@@ -33,6 +34,7 @@ private val BLOCK_UNKNOWN = booleanPreferencesKey("block_unknown")
 private val ONBOARDED = booleanPreferencesKey("onboarded")
 private val THEME = stringPreferencesKey("theme")
 private val DEFAULT_OVERRIDES = stringSetPreferencesKey("default_overrides")
+private val SPAM_NUMBERS = stringSetPreferencesKey("spam_numbers")
 
 class SettingsStore(context: Context) {
     private val store = context.dataStore
@@ -43,6 +45,7 @@ class SettingsStore(context: Context) {
             blockUnknown = prefs[BLOCK_UNKNOWN] ?: false,
             onboarded = prefs[ONBOARDED] ?: false,
             theme = ThemeMode.entries.find { it.name == prefs[THEME] } ?: ThemeMode.SYSTEM,
+            spamNumbers = prefs[SPAM_NUMBERS].orEmpty(),
         )
     }
 
@@ -59,6 +62,14 @@ class SettingsStore(context: Context) {
     suspend fun setRuleEnabled(rule: Rule, enabled: Boolean) {
         if (!rule.isDefault) return saveRule(rule.copy(enabled = enabled))
         store.edit { it[DEFAULT_OVERRIDES] = encodeOverrides(it.defaultOverrides() + (rule.id to enabled)) }
+    }
+
+    suspend fun addSpamNumber(key: String) {
+        store.edit { it[SPAM_NUMBERS] = it[SPAM_NUMBERS].orEmpty() + key }
+    }
+
+    suspend fun removeSpamNumber(key: String) {
+        store.edit { it[SPAM_NUMBERS] = it[SPAM_NUMBERS].orEmpty() - key }
     }
 
     suspend fun setBlockUnknown(enabled: Boolean) {

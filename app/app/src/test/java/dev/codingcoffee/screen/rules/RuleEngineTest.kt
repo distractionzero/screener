@@ -76,6 +76,19 @@ class RuleEngineTest {
     }
 
     @Test
+    fun `spam numbers are blocked regardless of prefix and allow rules`() {
+        val engine = RuleEngine(
+            listOf(rule("allow all", ".*", RuleAction.ALLOW)),
+            blockUnknown = false,
+            spamNumbers = setOf(spamKey("+919876543210")),
+        )
+        listOf("+919876543210", "09876543210", "9876543210").forEach {
+            assertEquals(it, Decision(true, REASON_SPAM), engine.evaluate(it, null, incoming = true))
+        }
+        assertFalse(engine.evaluate("+919876543211", null, incoming = true).block)
+    }
+
+    @Test
     fun `disabled rules are ignored`() {
         val engine = RuleEngine(listOf(rule("off", ".*", RuleAction.BLOCK, enabled = false)), blockUnknown = false)
         assertFalse(engine.evaluate("1409806457", null, incoming = true).block)

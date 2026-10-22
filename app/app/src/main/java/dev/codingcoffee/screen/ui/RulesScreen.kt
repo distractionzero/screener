@@ -13,6 +13,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.PersonOff
+import androidx.compose.material.icons.rounded.Report
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -84,6 +85,15 @@ fun RulesScreen(onEdit: (String) -> Unit, onAdd: () -> Unit) {
         }
     }
 
+    val onDeleteSpam: (String) -> Unit = { key ->
+        app.scope.launch { app.settingsStore.removeSpamNumber(key) }
+        scope.launch {
+            snackbar.currentSnackbarData?.dismiss()
+            val result = snackbar.showSnackbar("Removed ${formatNumber(key)}", "Undo", duration = SnackbarDuration.Short)
+            if (result == SnackbarResult.ActionPerformed) app.settingsStore.addSpamNumber(key)
+        }
+    }
+
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = { LargeTopAppBar(title = { Text("Rules") }, scrollBehavior = scrollBehavior) },
@@ -108,6 +118,21 @@ fun RulesScreen(onEdit: (String) -> Unit, onAdd: () -> Unit) {
                 rules = rules.filter { it.action == RuleAction.BLOCK },
                 onEdit = onEdit, onToggle = onToggle, onDelete = onDelete,
             )
+            item(key = "header-spam") { SectionHeader("Spam numbers") }
+            val spamNumbers = settings?.spamNumbers.orEmpty().sorted()
+            if (spamNumbers.isEmpty()) {
+                item(key = "empty-spam") {
+                    Text(
+                        "Numbers you mark as spam in Activity show up here. They're always blocked.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 8.dp),
+                    )
+                }
+            }
+            items(spamNumbers, key = { "spam-$it" }) { key ->
+                SpamNumberRow(key, onDelete = { onDeleteSpam(key) })
+            }
             item(key = "header-unknown") { SectionHeader("Everyone else") }
             item(key = "block-unknown") {
                 BlockUnknownRow(
@@ -184,7 +209,42 @@ private fun RuleRow(rule: Rule, onClick: () -> Unit, onToggle: (Boolean) -> Unit
         return
     }
 
+    SwipeToDelete(onDelete) {
+        Card(
+            onClick = onClick,
+            shape = CardShape,
+            colors = CardDefaults.cardColors(containerColor = colors.surfaceContainer),
+            modifier = Modifier.semantics {
+                customActions = listOf(CustomAccessibilityAction("Delete") { onDelete(); true })
+            },
+        ) {
+            RuleListItem(rule = rule, onToggle = onToggle)
+        }
+    }
+}
+
+@Composable
+private fun SpamNumberRow(key: String, onDelete: () -> Unit) {
+    SwipeToDelete(onDelete) {
+        TonalCard(
+            Modifier.semantics {
+                customActions = listOf(CustomAccessibilityAction("Remove") { onDelete(); true })
+            },
+        ) {
+            ListItem(
+                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                leadingContent = { Icon(Icons.Rounded.Report, contentDescription = null) },
+                headlineContent = { Text(formatNumber(key)) },
+                supportingContent = { Text("Marked as spam") },
+            )
+        }
+    }
+}
+
+@Composable
+private fun SwipeToDelete(onDelete: () -> Unit, content: @Composable () -> Unit) {
     val dismissState = rememberSwipeToDismissBoxState()
+    val colors = MaterialTheme.colorScheme
 
     SwipeToDismissBox(
         state = dismissState,
@@ -197,18 +257,7 @@ private fun RuleRow(rule: Rule, onClick: () -> Unit, onToggle: (Boolean) -> Unit
                 }
             }
         },
-    ) {
-        Card(
-            onClick = onClick,
-            shape = CardShape,
-            colors = CardDefaults.cardColors(containerColor = colors.surfaceContainer),
-            modifier = Modifier.semantics {
-                customActions = listOf(CustomAccessibilityAction("Delete") { onDelete(); true })
-            },
-        ) {
-            RuleListItem(rule = rule, onToggle = onToggle)
-        }
-    }
+    ) { content() }
 }
 
 @Composable

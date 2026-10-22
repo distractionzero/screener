@@ -17,6 +17,7 @@ data class Decision(val block: Boolean, val reason: String)
 
 const val REASON_NONE = "none"
 const val REASON_UNKNOWN = "unknown caller"
+const val REASON_SPAM = "marked as spam"
 
 val DefaultRules = listOf(
     Rule("default-140", "Telemarketing (140 series)", RuleType.NUMBER, """^(\+?91|0)?140\d*$""", RuleAction.BLOCK),
@@ -34,6 +35,12 @@ val Rule.isDefault: Boolean get() = id in DefaultRuleIds
 fun normalizeNumber(raw: String?): String? =
     raw?.filterNot { it == ' ' || it == '-' || it == '(' || it == ')' }
 
+fun spamKey(number: String): String = when {
+    number.startsWith("+91") -> number.drop(3)
+    number.startsWith("0") -> number.drop(1)
+    else -> number
+}
+
 fun compilePattern(pattern: String): Result<Regex> = runCatching { Regex(pattern) }
 
 fun escapeRegex(text: String): String =
@@ -47,7 +54,11 @@ fun Rule.matches(regex: Regex, number: String?, callerName: String?): Boolean {
     return subject != null && regex.containsMatchIn(subject)
 }
 
-class RuleEngine(rules: List<Rule>, private val blockUnknown: Boolean) {
+class RuleEngine(
+    rules: List<Rule>,
+    private val blockUnknown: Boolean,
+    private val spamNumbers: Set<String> = emptySet(),
+) {
     private val compiled = rules
         .filter { it.enabled }
         .mapNotNull { rule -> compilePattern(rule.pattern).getOrNull()?.let { rule to it } }
@@ -56,6 +67,7 @@ class RuleEngine(rules: List<Rule>, private val blockUnknown: Boolean) {
 
     fun evaluate(number: String?, callerName: String?, incoming: Boolean): Decision {
         if (!incoming) return Decision(block = false, reason = REASON_NONE)
+        if (number != null && spamKey(number) in spamNumbers) return Decision(block = true, reason = REASON_SPAM)
         allow.firstOrNull { (rule, regex) -> rule.matches(regex, number, callerName) }
             ?.let { return Decision(block = false, reason = it.first.name) }
         block.firstOrNull { (rule, regex) -> rule.matches(regex, number, callerName) }
