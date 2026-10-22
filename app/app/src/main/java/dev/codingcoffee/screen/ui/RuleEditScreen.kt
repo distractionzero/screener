@@ -16,7 +16,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Lock
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -93,6 +95,7 @@ fun RuleEditScreen(id: String?, initialPattern: String?, initialName: String?, o
     var match by rememberSaveable { mutableStateOf(parsed?.match ?: SimpleMatch.STARTS_WITH) }
     var value by rememberSaveable { mutableStateOf(parsed?.value.orEmpty()) }
     var sample by rememberSaveable { mutableStateOf("") }
+    var confirmDelete by rememberSaveable { mutableStateOf(false) }
 
     val simple = SimpleRule(match, value)
     val effectivePattern = if (advanced) pattern else simple.takeIf { it.isValid() }?.toPattern().orEmpty()
@@ -130,6 +133,11 @@ fun RuleEditScreen(id: String?, initialPattern: String?, initialName: String?, o
                     IconButton(onClick = onDone) { Icon(Icons.Rounded.Close, contentDescription = "Cancel") }
                 },
                 actions = {
+                    if (existing != null) {
+                        IconButton(onClick = { confirmDelete = true }) {
+                            Icon(Icons.Rounded.Delete, contentDescription = "Delete rule")
+                        }
+                    }
                     TextButton(
                         enabled = canSave,
                         onClick = {
@@ -272,6 +280,23 @@ fun RuleEditScreen(id: String?, initialPattern: String?, initialName: String?, o
                 modifier = Modifier.fillMaxWidth(),
             )
         }
+    }
+
+    if (confirmDelete && existing != null) {
+        AlertDialog(
+            onDismissRequest = { confirmDelete = false },
+            icon = { Icon(Icons.Rounded.Delete, contentDescription = null) },
+            title = { Text("Delete rule?") },
+            text = { Text("“${existing.name}” will be removed. This can't be undone.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmDelete = false
+                    app.scope.launch { app.settingsStore.deleteRule(existing.id) }
+                    onDone()
+                }) { Text("Delete") }
+            },
+            dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("Cancel") } },
+        )
     }
 }
 
