@@ -58,6 +58,7 @@ const defaultRules = [
   { name: 'Service calls (160 series)', matches: 'Numbers starting with 160 (banks, insurance, government)', block: false },
   { name: 'Bangalore cloud telephony', matches: 'Numbers starting with 8071', block: true },
   { name: 'Ahmedabad cloud telephony', matches: 'Numbers starting with 7935', block: true },
+  { name: 'Ahmedabad cloud telephony', matches: 'Numbers starting with 7971', block: true },
   { name: 'Carrier spam label', matches: 'Caller name containing “spam”, “fraud” or “scam”', block: true },
 ]
 

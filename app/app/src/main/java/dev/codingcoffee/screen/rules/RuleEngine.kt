@@ -23,6 +23,7 @@ val DefaultRules = listOf(
     Rule("default-160", "Service calls (160 series)", RuleType.NUMBER, """^(\+?91|0)?160\d*$""", RuleAction.ALLOW),
     Rule("default-8071", "Bangalore cloud telephony (8071)", RuleType.NUMBER, """^(\+?91|0)?8071\d*$""", RuleAction.BLOCK),
     Rule("default-7935", "Ahmedabad cloud telephony (7935)", RuleType.NUMBER, """^(\+?91|0)?7935\d*$""", RuleAction.BLOCK),
+    Rule("default-7971", "Ahmedabad cloud telephony (7971)", RuleType.NUMBER, """^(\+?91|0)?7971\d*$""", RuleAction.BLOCK),
     Rule("default-spam", "Carrier spam label", RuleType.CALLER_NAME, """(?i)spam|fraud|scam""", RuleAction.BLOCK),
 )
 

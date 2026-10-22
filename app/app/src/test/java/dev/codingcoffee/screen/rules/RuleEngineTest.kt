@@ -72,6 +72,7 @@ class RuleEngineTest {
         assertEquals(Decision(false, REASON_NONE), engine.evaluate("+917012345678", "Asha", true))
         assertEquals(Decision(true, "Bangalore cloud telephony (8071)"), engine.evaluate("+918071234567", null, true))
         assertEquals(Decision(true, "Ahmedabad cloud telephony (7935)"), engine.evaluate("07935123456", null, true))
+        assertEquals(Decision(true, "Ahmedabad cloud telephony (7971)"), engine.evaluate("+917971234567", null, true))
     }
 
     @Test
