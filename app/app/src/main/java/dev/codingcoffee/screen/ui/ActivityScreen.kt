@@ -55,9 +55,14 @@ import dev.codingcoffee.screen.rules.spamKey
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.time.temporal.TemporalAdjusters
 import java.time.temporal.WeekFields
 import java.util.Locale
+
+private val Weekday = DateTimeFormatter.ofPattern("EEEE")
+private val DayMonth = DateTimeFormatter.ofPattern("d MMMM")
+private val DayMonthYear = DateTimeFormatter.ofPattern("d MMMM yyyy")
 
 private enum class Filter(val label: String) { ALL("All"), BLOCKED("Blocked"), ALLOWED("Allowed") }
 
@@ -83,6 +88,12 @@ fun ActivityScreen(onOpenEntry: (String) -> Unit) {
                 Filter.ALLOWED -> !it.blocked
             }
         }
+    }
+
+    val today = LocalDate.now()
+    val byDay = remember(visible) {
+        val zone = ZoneId.systemDefault()
+        visible.groupBy { Instant.ofEpochMilli(it.timestamp).atZone(zone).toLocalDate() }
     }
 
     Scaffold(
@@ -132,13 +143,16 @@ fun ActivityScreen(onOpenEntry: (String) -> Unit) {
                         body = "Try another filter.",
                     )
                 }
-                else -> items(visible, key = { it.id }) { entry ->
-                    val number = entry.number?.takeUnless { entry.blocked || spamKey(it) in spamNumbers }
-                    CallRow(
-                        entry,
-                        onClick = { onOpenEntry(entry.id) },
-                        onMarkSpam = number?.let { { scope.markSpam(app, it, snackbar) } },
-                    )
+                else -> byDay.forEach { (date, calls) ->
+                    item(key = date.toString()) { SectionHeader(dayHeader(date, today), centered = true) }
+                    items(calls, key = { it.id }) { entry ->
+                        val number = entry.number?.takeUnless { entry.blocked || spamKey(it) in spamNumbers }
+                        CallRow(
+                            entry,
+                            onClick = { onOpenEntry(entry.id) },
+                            onMarkSpam = number?.let { { scope.markSpam(app, it, snackbar) } },
+                        )
+                    }
                 }
             }
         }
@@ -197,6 +211,14 @@ private fun Stat(value: Int, label: String, modifier: Modifier = Modifier) {
         Text(value.toString(), style = MaterialTheme.typography.headlineMedium)
         Text(label, style = MaterialTheme.typography.labelMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
+}
+
+private fun dayHeader(date: LocalDate, today: LocalDate): String = when {
+    date == today -> "Today"
+    date == today.minusDays(1) -> "Yesterday"
+    date.isAfter(today.minusDays(7)) -> date.format(Weekday)
+    date.year == today.year -> date.format(DayMonth)
+    else -> date.format(DayMonthYear)
 }
 
 private fun blockedCounts(entries: List<LogEntry>): Triple<Int, Int, Int> {

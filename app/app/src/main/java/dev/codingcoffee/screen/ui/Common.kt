@@ -119,13 +119,15 @@ fun TonalCard(modifier: Modifier = Modifier, content: @Composable ColumnScope.()
 }
 
 @Composable
-fun SectionHeader(text: String, modifier: Modifier = Modifier) {
+fun SectionHeader(text: String, modifier: Modifier = Modifier, centered: Boolean = false) {
     Text(
         text = text,
         style = MaterialTheme.typography.titleSmall,
         color = MaterialTheme.colorScheme.primary,
+        textAlign = if (centered) TextAlign.Center else null,
         modifier = modifier
-            .padding(start = 8.dp, top = 16.dp, bottom = 8.dp)
+            .then(if (centered) Modifier.fillMaxWidth() else Modifier)
+            .padding(start = if (centered) 0.dp else 8.dp, top = 16.dp, bottom = 8.dp)
             .semantics { heading() },
     )
 }
