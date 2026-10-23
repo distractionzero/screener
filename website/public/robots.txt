@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://phonescreener.codingcoffee.dev/sitemap.xml
+Sitemap: https://screener.codingcoffee.dev/sitemap.xml

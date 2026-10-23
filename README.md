@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="website/public/icon-192.png" alt="Phone Screener icon" width="96" height="96">
+  <img src="website/public/icon-192.png" alt="Screener icon" width="96" height="96">
 </p>
 
-<h1 align="center">Phone Screener</h1>
+<h1 align="center">Screener - Spam Call Blocker</h1>
 
 <p align="center">Block spam calls on Android with your own rules. Free, open source and fully offline.</p>
 
@@ -13,7 +13,7 @@
   <a href="#release-build">Release build</a>
 </p>
 
-A call blocker for Android (India). Phone Screener rejects incoming calls that match your rules: a regex on the
+A call blocker for Android (India). Screener rejects incoming calls that match your rules: a regex on the
 number, or a regex on the caller name the network sends. It does **not** replace your phone app. It only
 holds the call screening role (`ROLE_CALL_SCREENING`) and works alongside your dialer (e.g. Google Phone).
 
@@ -28,7 +28,7 @@ log to see what Jio, Airtel, Vi and BSNL actually send.
 ## Layout
 
 ```
-app/app/src/main/java/dev/codingcoffee/screen/
+app/app/src/main/java/dev/codingcoffee/screener/
   RegexCallScreeningService.kt   # onScreenCall: decide, respond, then log
   ScreenApp.kt                   # app singletons, in-memory rule cache
   rules/RuleEngine.kt            # normalization, default rules, evaluation order
@@ -55,7 +55,7 @@ emulator -avd pixel37
 
 adb devices # ensure device is running
 cd app && ./gradlew installDebug
-adb shell am start -n dev.codingcoffee.screen/.MainActivity
+adb shell am start -n dev.codingcoffee.screener/.MainActivity
 
 # in case its not killed
 adb emu kill
@@ -83,7 +83,7 @@ an entry in Activity and look at the raw JSON.
 To pull the raw log from a debug build:
 
 ```sh
-adb shell run-as dev.codingcoffee.screen cat files/call_log.jsonl
+adb shell run-as dev.codingcoffee.screener cat files/call_log.jsonl
 ```
 
 ## Release build
@@ -128,9 +128,9 @@ Debug and release builds are signed with different keys, so uninstall the debug 
 app's data.
 
 ```sh
-adb uninstall dev.codingcoffee.screen
+adb uninstall dev.codingcoffee.screener
 adb install -r app/build/outputs/apk/release/app-release.apk
-adb shell am start -n dev.codingcoffee.screen/.MainActivity
+adb shell am start -n dev.codingcoffee.screener/.MainActivity
 ```
 
 Later release builds install over the previous one with `adb install -r`, keeping data.
@@ -139,13 +139,13 @@ Later release builds install over the previous one with `adb install -r`, keepin
 
 With USB debugging on: `adb install -r app/build/outputs/apk/release/app-release.apk`. Or copy the APK to the
 phone and open it, allowing "Install unknown apps" when asked. If granting the call screening role is
-blocked as a restricted setting, go to Settings → Apps → Phone Screener → ⋮ → Allow restricted settings.
+blocked as a restricted setting, go to Settings → Apps → Screener → ⋮ → Allow restricted settings.
 
 ### Debugging a release crash
 
 ```sh
 adb logcat -c
-adb shell am start -n dev.codingcoffee.screen/.MainActivity
+adb shell am start -n dev.codingcoffee.screener/.MainActivity
 adb logcat -d -b crash
 ```
 

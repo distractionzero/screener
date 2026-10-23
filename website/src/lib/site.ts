@@ -1,9 +1,9 @@
 export const site = {
-  name: 'Phone Screener',
-  url: 'https://phonescreener.codingcoffee.dev',
+  name: 'Screener - Spam Call Blocker',
+  url: 'https://screener.codingcoffee.dev',
   repo: 'https://github.com/distractionzero/phone-spam-screener',
   license: 'https://www.gnu.org/licenses/gpl-3.0.html',
-  ogImage: 'https://phonescreener.codingcoffee.dev/og-image.png',
+  ogImage: 'https://screener.codingcoffee.dev/og-image.png',
   author: { name: 'Ameya Shenoy', url: 'https://www.codingcoffee.dev' },
 }
 

@@ -3,14 +3,14 @@ import { useSeo } from '@/composables/useSeo'
 import { absoluteUrl, authorLd, breadcrumbLd } from '@/lib/site'
 
 const path = '/privacy-policy'
-const title = 'Privacy Policy | Phone Screener, the Offline Call Blocker'
+const title = 'Privacy Policy | Screener - Spam Call Blocker'
 const description =
-  'Phone Screener does not collect, send or share any of your data. Learn what the call blocker sees, what it stores on your phone, and how you stay in control.'
+  'Screener does not collect, send or share any of your data. Learn what the call blocker sees, what it stores on your phone, and how you stay in control.'
 
 const sections = [
   {
     heading: 'Summary',
-    body: 'Phone Screener does not collect, send, or share any of your data. Everything it handles stays on your phone.',
+    body: 'Screener does not collect, send, or share any of your data. Everything it handles stays on your phone.',
   },
   {
     heading: 'What the app sees',

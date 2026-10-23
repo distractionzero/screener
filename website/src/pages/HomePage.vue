@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useSeo } from '@/composables/useSeo'
 import { absoluteUrl, authorLd, site } from '@/lib/site'
 
-const title = 'Phone Screener: Free Spam Call Blocker for Android in India'
+const title = 'Screener - Spam Call Blocker for Android in India'
 const description =
   'Block spam and telemarketing calls on Android with your own rules, by number or caller name. A free, open source call blocker for India that works offline.'
 
@@ -29,7 +29,7 @@ const features = [
   {
     icon: PhoneIncoming,
     title: 'Works with your phone app',
-    body: 'Phone Screener does not replace your dialer. It only takes Android’s caller ID & spam role, so Google Phone or any other phone app keeps working as usual.',
+    body: 'Screener does not replace your dialer. It only takes Android’s caller ID & spam role, so Google Phone or any other phone app keeps working as usual.',
   },
   {
     icon: UserCheck,
@@ -65,11 +65,11 @@ const defaultRules = [
 const steps = [
   {
     title: 'Set it as your caller ID & spam app',
-    body: 'Open Phone Screener once and grant the call screening role. You can revoke it any time in system settings.',
+    body: 'Open Screener once and grant the call screening role. You can revoke it any time in system settings.',
   },
   {
     title: 'An unknown number calls',
-    body: 'Android hands Phone Screener the number and the caller name from your network. Saved contacts skip this step.',
+    body: 'Android hands Screener the number and the caller name from your network. Saved contacts skip this step.',
   },
   {
     title: 'Your rules decide',
@@ -83,7 +83,7 @@ const steps = [
 
 const faqs = [
   {
-    q: 'Does Phone Screener replace my phone app?',
+    q: 'Does Screener replace my phone app?',
     a: 'No. It only holds Android’s call screening role and works alongside your existing dialer, such as Google Phone.',
   },
   {
@@ -92,7 +92,7 @@ const faqs = [
   },
   {
     q: 'How do I block 140 series telemarketing calls?',
-    a: 'Install Phone Screener and set it as your caller ID & spam app. The 140 series block rule is on by default, and the 160 series used by banks, insurance and government is allowed.',
+    a: 'Install Screener and set it as your caller ID & spam app. The 140 series block rule is on by default, and the 160 series used by banks, insurance and government is allowed.',
   },
   {
     q: 'Does it send my call data anywhere?',
@@ -107,12 +107,12 @@ const faqs = [
     a: 'Android 10 and newer, which is when the call screening role became available to third-party apps.',
   },
   {
-    q: 'Is Phone Screener free?',
+    q: 'Is Screener free?',
     a: 'Yes. It is free and open source software, licensed under the GNU General Public License v3.',
   },
   {
-    q: 'How do I install Phone Screener?',
-    a: 'Phone Screener is distributed as source code. Build the APK by following the README on GitHub, then install it on your phone.',
+    q: 'How do I install Screener?',
+    a: 'Screener is distributed as source code. Build the APK by following the README on GitHub, then install it on your phone.',
   },
 ]
 
@@ -183,7 +183,7 @@ useSeo({
           Block spam and telemarketing calls on Android
         </h1>
         <p class="mt-5 text-lg text-pretty text-muted-foreground">
-          Phone Screener is a free, open source call blocker for India that follows your rules. Block or allow calls
+          Screener is a free, open source call blocker for India that follows your rules. Block or allow calls
           by number or by the caller name your network sends, from a single pesky caller to an entire series.
         </p>
         <div class="mt-8 flex flex-wrap gap-3">
@@ -229,7 +229,7 @@ useSeo({
           </CardContent>
         </Card>
         <figcaption class="mt-3 text-center text-xs text-muted-foreground">
-          Example of the call activity log in Phone Screener
+          Example of the call activity log in Screener
         </figcaption>
       </figure>
     </div>
@@ -241,7 +241,7 @@ useSeo({
         A spam call blocker that stays out of your way
       </h2>
       <p class="mt-3 max-w-2xl text-muted-foreground">
-        Phone Screener quietly checks calls from unknown numbers and rejects the ones that match your rules.
+        Screener quietly checks calls from unknown numbers and rejects the ones that match your rules.
       </p>
       <ul class="mt-12 grid gap-x-10 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
         <li v-for="feature in features" :key="feature.title">
@@ -286,7 +286,7 @@ useSeo({
 
   <section id="how-it-works" aria-labelledby="how-title" class="scroll-mt-20 border-t">
     <div class="mx-auto max-w-5xl px-4 py-20 sm:px-6">
-      <h2 id="how-title" class="text-3xl font-semibold tracking-tight text-balance">How Phone Screener works</h2>
+      <h2 id="how-title" class="text-3xl font-semibold tracking-tight text-balance">How Screener works</h2>
       <ol class="mt-12 grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
         <li v-for="(step, i) in steps" :key="step.title">
           <span class="text-sm font-medium text-primary">Step {{ i + 1 }}</span>
@@ -313,7 +313,7 @@ useSeo({
     <div class="mx-auto max-w-5xl px-4 py-20 text-center sm:px-6">
       <h2 id="cta-title" class="text-3xl font-semibold tracking-tight text-balance">Take back your phone</h2>
       <p class="mx-auto mt-3 max-w-xl text-muted-foreground">
-        Phone Screener is free software under the GPLv3. Read the code, build it yourself, and make it yours.
+        Screener is free software under the GPLv3. Read the code, build it yourself, and make it yours.
       </p>
       <Button as-child size="lg" class="mt-8">
         <a :href="site.repo" target="_blank" rel="noopener noreferrer">

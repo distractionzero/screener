@@ -15,7 +15,7 @@ const links = [
 <template>
   <header class="sticky top-0 z-40 border-b bg-background/85 backdrop-blur supports-[backdrop-filter]:bg-background/70">
     <div class="mx-auto flex h-16 max-w-5xl items-center justify-between gap-4 px-4 sm:px-6">
-      <RouterLink to="/" class="flex items-center gap-2.5 font-semibold tracking-tight" aria-label="Phone Screener home">
+      <RouterLink to="/" class="flex items-center gap-2.5 font-semibold tracking-tight" aria-label="Screener home">
         <AppLogo class="size-8" />
         <span>{{ site.name }}</span>
       </RouterLink>

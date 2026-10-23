@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button'
 import { useSeo } from '@/composables/useSeo'
 
 useSeo({
-  title: 'Page not found | Phone Screener',
+  title: 'Page not found | Screener - Spam Call Blocker',
   description: 'The page you are looking for does not exist.',
   path: '/404',
   noindex: true,

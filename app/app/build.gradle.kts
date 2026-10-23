@@ -4,13 +4,13 @@ plugins {
 }
 
 android {
-    namespace = "dev.codingcoffee.screen"
+    namespace = "dev.codingcoffee.screener"
     compileSdk {
         version = release(37)
     }
 
     defaultConfig {
-        applicationId = "dev.codingcoffee.screen"
+        applicationId = "dev.codingcoffee.screener"
         minSdk = 29
         targetSdk = 37
         versionCode = 1

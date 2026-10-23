@@ -4,9 +4,9 @@ import { useSeo } from '@/composables/useSeo'
 import { absoluteUrl, breadcrumbLd, site } from '@/lib/site'
 
 const path = '/open-source-licenses'
-const title = 'Open Source Licenses | Phone Screener Android Call Blocker'
+const title = 'Open Source Licenses | Screener - Spam Call Blocker'
 const description =
-  'Phone Screener is free software under the GPLv3, built on open source libraries from Google and JetBrains. See each library the Android app uses and its license.'
+  'Screener is free software under the GPLv3, built on open source libraries from Google and JetBrains. See each library the Android app uses and its license.'
 
 const ANDROIDX = 'https://github.com/androidx/androidx/blob/androidx-main/LICENSE.txt'
 
