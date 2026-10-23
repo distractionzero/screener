@@ -62,7 +62,7 @@ import kotlinx.coroutines.withContext
 
 private const val DEVELOPER_NAME = "Ameya Shenoy"
 private const val DEVELOPER_URL = "https://www.codingcoffee.dev"
-private const val REPO_URL = "https://github.com/distractionzero/phone-spam-screener"
+private const val REPO_URL = "https://github.com/distractionzero/screener"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
