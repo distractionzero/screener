@@ -69,6 +69,24 @@ class CallLogStore(private val file: File, scope: CoroutineScope) {
         }
     }
 
+    suspend fun exportEntries(): String = withContext(Dispatchers.IO) {
+        mutex.withLock { if (file.exists()) file.readText() else "" }
+    }
+
+    /** Entries whose id already exists are skipped; returns how many were added. */
+    suspend fun importEntries(jsonl: String): Int = withContext(Dispatchers.IO) {
+        mutex.withLock {
+            val current = if (file.exists()) file.readLines().mapNotNull(LogEntry::parse) else emptyList()
+            val ids = current.mapTo(HashSet()) { it.id }
+            val added = jsonl.lineSequence().mapNotNull(LogEntry::parse).filter { ids.add(it.id) }.toList()
+            if (added.isEmpty()) return@withLock 0
+            val merged = (current + added).sortedBy { it.timestamp }
+            file.writeText(merged.joinToString("") { it.json.toString() + "\n" })
+            _entries.value = merged.reversed()
+            added.size
+        }
+    }
+
     suspend fun clear() = withContext(Dispatchers.IO) {
         mutex.withLock {
             file.writeText("")

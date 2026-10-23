@@ -107,6 +107,31 @@ fun SettingsScreen(onOpenPrivacy: () -> Unit, onOpenLicenses: () -> Unit) {
             snackbar.showSnackbar(message)
         }
     }
+    val exportActivityLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/jsonl")) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        scope.launch {
+            val message = runCatching {
+                val jsonl = app.callLog.exportEntries()
+                withContext(Dispatchers.IO) {
+                    context.contentResolver.openOutputStream(uri, "wt")!!.bufferedWriter().use { it.write(jsonl) }
+                }
+                "Exported ${entries?.size ?: 0} calls"
+            }.getOrElse { "Export failed" }
+            snackbar.showSnackbar(message)
+        }
+    }
+    val importActivityLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        scope.launch {
+            val message = runCatching {
+                val jsonl = withContext(Dispatchers.IO) {
+                    context.contentResolver.openInputStream(uri)!!.bufferedReader().use { it.readText() }
+                }
+                "Imported ${app.callLog.importEntries(jsonl)} calls"
+            }.getOrElse { "Import failed" }
+            snackbar.showSnackbar(message)
+        }
+    }
 
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
@@ -196,6 +221,20 @@ fun SettingsScreen(onOpenPrivacy: () -> Unit, onOpenLicenses: () -> Unit) {
                     leadingContent = { Icon(Icons.Rounded.FileDownload, contentDescription = null) },
                     headlineContent = { Text("Import rules") },
                     supportingContent = { Text("From a .jsonl export") },
+                )
+                ListItem(
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                    modifier = Modifier.clickable { exportActivityLauncher.launch("screener-activity.jsonl") },
+                    leadingContent = { Icon(Icons.Rounded.FileUpload, contentDescription = null) },
+                    headlineContent = { Text("Export activity") },
+                    supportingContent = { Text("${entries?.size ?: 0} calls") },
+                )
+                ListItem(
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                    modifier = Modifier.clickable { importActivityLauncher.launch(arrayOf("*/*")) },
+                    leadingContent = { Icon(Icons.Rounded.FileDownload, contentDescription = null) },
+                    headlineContent = { Text("Import activity") },
+                    supportingContent = { Text("From a .jsonl export, duplicates are skipped") },
                 )
                 ListItem(
                     colors = ListItemDefaults.colors(containerColor = Color.Transparent),
