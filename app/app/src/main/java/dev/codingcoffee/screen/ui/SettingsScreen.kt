@@ -1,5 +1,7 @@
 package dev.codingcoffee.screen.ui
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -14,6 +16,8 @@ import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.Code
 import androidx.compose.material.icons.rounded.DeleteSweep
 import androidx.compose.material.icons.rounded.Description
+import androidx.compose.material.icons.rounded.FileDownload
+import androidx.compose.material.icons.rounded.FileUpload
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.Person
@@ -30,12 +34,16 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -47,7 +55,10 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.codingcoffee.screen.app
 import dev.codingcoffee.screen.data.ThemeMode
+import dev.codingcoffee.screen.rules.isDefault
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 private const val DEVELOPER_NAME = "Ameya Shenoy"
 private const val DEVELOPER_URL = "https://www.codingcoffee.dev"
@@ -65,10 +76,42 @@ fun SettingsScreen(onOpenPrivacy: () -> Unit, onOpenLicenses: () -> Unit) {
     var confirmClear by rememberSaveable { mutableStateOf(false) }
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val colors = MaterialTheme.colorScheme
+    val scope = rememberCoroutineScope()
+    val snackbar = remember { SnackbarHostState() }
+    val personalRules = settings?.rules?.count { !it.isDefault } ?: 0
+    val spamNumbers = settings?.spamNumbers?.size ?: 0
+
+    val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/jsonl")) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        scope.launch {
+            val message = runCatching {
+                val jsonl = app.settingsStore.exportRules()
+                withContext(Dispatchers.IO) {
+                    context.contentResolver.openOutputStream(uri, "wt")!!.bufferedWriter().use { it.write(jsonl) }
+                }
+                "Exported $personalRules rules and $spamNumbers spam numbers"
+            }.getOrElse { "Export failed" }
+            snackbar.showSnackbar(message)
+        }
+    }
+    val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        scope.launch {
+            val message = runCatching {
+                val jsonl = withContext(Dispatchers.IO) {
+                    context.contentResolver.openInputStream(uri)!!.bufferedReader().use { it.readText() }
+                }
+                val result = app.settingsStore.importRules(jsonl)
+                "Imported ${result.rules} rules and ${result.spamNumbers} spam numbers"
+            }.getOrElse { "Import failed" }
+            snackbar.showSnackbar(message)
+        }
+    }
 
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = { LargeTopAppBar(title = { Text("Settings") }, scrollBehavior = scrollBehavior) },
+        snackbarHost = { SnackbarHost(snackbar) },
     ) { padding ->
         Column(
             modifier = Modifier
@@ -140,6 +183,20 @@ fun SettingsScreen(onOpenPrivacy: () -> Unit, onOpenLicenses: () -> Unit) {
 
             SectionHeader("Data")
             TonalCard {
+                ListItem(
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                    modifier = Modifier.clickable { exportLauncher.launch("phone-screener-rules.jsonl") },
+                    leadingContent = { Icon(Icons.Rounded.FileUpload, contentDescription = null) },
+                    headlineContent = { Text("Export rules") },
+                    supportingContent = { Text("$personalRules personal rules, $spamNumbers spam numbers") },
+                )
+                ListItem(
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                    modifier = Modifier.clickable { importLauncher.launch(arrayOf("*/*")) },
+                    leadingContent = { Icon(Icons.Rounded.FileDownload, contentDescription = null) },
+                    headlineContent = { Text("Import rules") },
+                    supportingContent = { Text("From a .jsonl export") },
+                )
                 ListItem(
                     colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                     modifier = Modifier.clickable { confirmClear = true },
