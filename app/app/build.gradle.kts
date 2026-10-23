@@ -19,15 +19,15 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
-    val releaseStoreFile = providers.gradleProperty("SCREEN_STORE_FILE").orNull
+    val releaseStoreFile = providers.gradleProperty("SCREENER_STORE_FILE").orNull
 
     signingConfigs {
         if (releaseStoreFile != null) {
             create("release") {
                 storeFile = file(releaseStoreFile)
-                storePassword = providers.gradleProperty("SCREEN_STORE_PASSWORD").orNull
-                keyAlias = providers.gradleProperty("SCREEN_KEY_ALIAS").orNull
-                keyPassword = providers.gradleProperty("SCREEN_KEY_PASSWORD").orNull
+                storePassword = providers.gradleProperty("SCREENER_STORE_PASSWORD").orNull
+                keyAlias = providers.gradleProperty("SCREENER_KEY_ALIAS").orNull
+                keyPassword = providers.gradleProperty("SCREENER_KEY_PASSWORD").orNull
             }
         }
     }

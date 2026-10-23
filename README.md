@@ -91,8 +91,8 @@ adb shell run-as dev.codingcoffee.screener cat files/call_log.jsonl
 ### Signing key (once)
 
 ```sh
-keytool -genkeypair -v -keystore ~/.android/screen-release.jks \
-  -alias screen -keyalg RSA -keysize 4096 -validity 10000
+keytool -genkeypair -v -keystore ~/.android/screener-release.jks \
+  -alias screener -keyalg RSA -keysize 4096 -validity 10000
 ```
 
 Back up the keystore. Updates must be signed with the same key; losing it means uninstalling, which wipes
@@ -102,10 +102,10 @@ Add the credentials to `~/.gradle/gradle.properties` (user-level, never the repo
 `chmod 600 ~/.gradle/gradle.properties`:
 
 ```properties
-SCREEN_STORE_FILE=/home/<you>/.android/screen-release.jks
-SCREEN_STORE_PASSWORD=<password>
-SCREEN_KEY_ALIAS=screen
-SCREEN_KEY_PASSWORD=<password>
+SCREENER_STORE_FILE=/home/<you>/.android/screener-release.jks
+SCREENER_STORE_PASSWORD=<password>
+SCREENER_KEY_ALIAS=screener
+SCREENER_KEY_PASSWORD=<password>
 ```
 
 Use an absolute path; Gradle doesn't expand `~`. Without these properties the release APK is built unsigned.
