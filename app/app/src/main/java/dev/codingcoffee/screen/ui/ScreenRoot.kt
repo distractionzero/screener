@@ -37,8 +37,8 @@ import kotlinx.coroutines.launch
 private enum class Tab(val label: String, val icon: ImageVector) {
     ACTIVITY("Activity", Icons.Rounded.History),
     RULES("Rules", Icons.Rounded.Tune),
-    SETTINGS("Settings", Icons.Rounded.Settings),
     STATS("Stats", Icons.Rounded.BarChart),
+    SETTINGS("Settings", Icons.Rounded.Settings),
 }
 
 @Composable
