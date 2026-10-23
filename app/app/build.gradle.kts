@@ -13,8 +13,8 @@ android {
         applicationId = "dev.codingcoffee.screener"
         minSdk = 29
         targetSdk = 37
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "1.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
