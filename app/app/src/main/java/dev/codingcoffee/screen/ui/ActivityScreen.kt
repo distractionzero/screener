@@ -148,7 +148,7 @@ fun ActivityScreen(onOpenEntry: (String) -> Unit) {
 @Composable
 private fun StatusCard(roleHeld: Boolean, entries: List<LogEntry>) {
     val requestRole = rememberRoleRequest()
-    val (today, week) = remember(entries) { blockedCounts(entries) }
+    val (today, week, total) = remember(entries) { blockedCounts(entries) }
     val colors = MaterialTheme.colorScheme
 
     Card(
@@ -179,28 +179,32 @@ private fun StatusCard(roleHeld: Boolean, entries: List<LogEntry>) {
             if (!roleHeld) {
                 FilledTonalButton(onClick = requestRole) { Text("Fix") }
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(32.dp)) {
-                Stat(today, "Blocked today")
-                Stat(week, "Blocked this week")
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("Blocked calls", style = MaterialTheme.typography.labelMedium)
+                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Stat(today, "Today", Modifier.weight(1f))
+                    Stat(week, "This week", Modifier.weight(1f))
+                    Stat(total, "All time", Modifier.weight(1f))
+                }
             }
         }
     }
 }
 
 @Composable
-private fun Stat(value: Int, label: String) {
-    Column {
+private fun Stat(value: Int, label: String, modifier: Modifier = Modifier) {
+    Column(modifier) {
         Text(value.toString(), style = MaterialTheme.typography.headlineMedium)
-        Text(label, style = MaterialTheme.typography.labelMedium)
+        Text(label, style = MaterialTheme.typography.labelMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 
-private fun blockedCounts(entries: List<LogEntry>): Pair<Int, Int> {
+private fun blockedCounts(entries: List<LogEntry>): Triple<Int, Int, Int> {
     val zone = ZoneId.systemDefault()
     val today = LocalDate.now(zone)
     val weekStart = today.with(TemporalAdjusters.previousOrSame(WeekFields.of(Locale.getDefault()).firstDayOfWeek))
     val dates = entries.filter { it.blocked }.map { Instant.ofEpochMilli(it.timestamp).atZone(zone).toLocalDate() }
-    return dates.count { it == today } to dates.count { !it.isBefore(weekStart) }
+    return Triple(dates.count { it == today }, dates.count { !it.isBefore(weekStart) }, dates.size)
 }
 
 @Composable

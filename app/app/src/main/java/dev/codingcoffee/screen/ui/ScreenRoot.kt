@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.BarChart
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Tune
@@ -37,6 +38,7 @@ private enum class Tab(val label: String, val icon: ImageVector) {
     ACTIVITY("Activity", Icons.Rounded.History),
     RULES("Rules", Icons.Rounded.Tune),
     SETTINGS("Settings", Icons.Rounded.Settings),
+    STATS("Stats", Icons.Rounded.BarChart),
 }
 
 @Composable
@@ -123,6 +125,7 @@ private fun Tabs(nav: NavHostController) {
         ) { page ->
             when (Tab.entries[page]) {
                 Tab.ACTIVITY -> ActivityScreen(onOpenEntry = { nav.navigate("log/${Uri.encode(it)}") })
+                Tab.STATS -> StatsScreen()
                 Tab.RULES -> RulesScreen(
                     onEdit = { nav.navigate(ruleRoute(id = it)) },
                     onAdd = { nav.navigate(ruleRoute()) },
