@@ -44,8 +44,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import androidx.lifecycle.compose.LifecycleResumeEffect
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.codingcoffee.screener.ScreenApp
-import dev.codingcoffee.screener.rules.spamKey
+import dev.codingcoffee.screener.app
+import dev.codingcoffee.screener.rules.UNKNOWN_REGION
+import dev.codingcoffee.screener.rules.normalizeNumber
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -87,21 +90,27 @@ fun openDefaultAppsSettings(context: Context) {
     context.startActivity(Intent(Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS))
 }
 
-fun formatNumber(number: String?): String =
+@Composable
+fun currentRegion(): String {
+    val settings by LocalContext.current.app.settings.collectAsStateWithLifecycle()
+    return settings?.region ?: UNKNOWN_REGION
+}
+
+fun formatNumber(number: String?, region: String?): String =
     when {
         number.isNullOrBlank() -> "Private number"
-        else -> PhoneNumberUtils.formatNumber(number, "IN") ?: number
+        else -> PhoneNumberUtils.formatNumber(number, region) ?: number
     }
 
 fun relativeTime(timestamp: Long): String =
     DateUtils.getRelativeTimeSpanString(timestamp, System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS).toString()
 
-fun CoroutineScope.markSpam(app: ScreenApp, number: String, snackbar: SnackbarHostState) {
-    val key = spamKey(number)
+fun CoroutineScope.markSpam(app: ScreenApp, number: String, region: String, snackbar: SnackbarHostState) {
+    val key = normalizeNumber(number, region) ?: return
     app.scope.launch { app.settingsStore.addSpamNumber(key) }
     launch {
         snackbar.currentSnackbarData?.dismiss()
-        val result = snackbar.showSnackbar("Marked ${formatNumber(number)} as spam", "Undo", duration = SnackbarDuration.Short)
+        val result = snackbar.showSnackbar("Marked ${formatNumber(number, region)} as spam", "Undo", duration = SnackbarDuration.Short)
         if (result == SnackbarResult.ActionPerformed) app.settingsStore.removeSpamNumber(key)
     }
 }

@@ -13,7 +13,7 @@
   <a href="#release-build">Release build</a>
 </p>
 
-A call blocker for Android (India). Screener rejects incoming calls that match your rules: a regex on the
+A call blocker for Android. Screener rejects incoming calls that match your rules: a regex on the
 number, or a regex on the caller name the network sends. It does **not** replace your phone app. It only
 holds the call screening role (`ROLE_CALL_SCREENING`) and works alongside your dialer (e.g. Google Phone).
 
@@ -22,7 +22,10 @@ log to see what Jio, Airtel, Vi and BSNL actually send.
 
 - Saved contacts never reach the service, so they always ring.
 - Allow rules are checked first, then block rules, then "Block all unknown callers" if it's on.
-- The 160 series (banks, insurance, government) is on the allow list by default.
+- Numbers are matched in international format (`+919876543210`, `+12125550123`). Numbers without a country code
+  are read as local to your country, which is detected from the SIM and can be changed in Settings.
+- In India, the 140 series and common cloud telephony prefixes are blocked by default, and the 160 series (banks,
+  insurance, government) is on the allow list.
 - No `INTERNET` permission, and backups are disabled. Everything stays on the device.
 
 ## Layout

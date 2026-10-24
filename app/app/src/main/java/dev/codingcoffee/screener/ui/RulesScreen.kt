@@ -69,6 +69,7 @@ fun RulesScreen(onEdit: (String) -> Unit, onAdd: () -> Unit) {
     val app = LocalContext.current.app
     val settings by app.settings.collectAsStateWithLifecycle()
     val rules = settings?.rules.orEmpty()
+    val region = currentRegion()
     val scope = rememberCoroutineScope()
     val snackbar = remember { SnackbarHostState() }
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
@@ -90,7 +91,7 @@ fun RulesScreen(onEdit: (String) -> Unit, onAdd: () -> Unit) {
         app.scope.launch { app.settingsStore.removeSpamNumber(key) }
         scope.launch {
             snackbar.currentSnackbarData?.dismiss()
-            val result = snackbar.showSnackbar("Removed ${formatNumber(key)}", "Undo", duration = SnackbarDuration.Short)
+            val result = snackbar.showSnackbar("Removed ${formatNumber(key, region)}", "Undo", duration = SnackbarDuration.Short)
             if (result == SnackbarResult.ActionPerformed) app.settingsStore.addSpamNumber(key)
         }
     }
@@ -239,15 +240,16 @@ private fun RuleRow(rule: Rule, onClick: () -> Unit, onToggle: (Boolean) -> Unit
 
 @Composable
 private fun SpamNumberRow(key: String, onDelete: () -> Unit) {
+    val region = currentRegion()
     TonalCard {
         ListItem(
             colors = ListItemDefaults.colors(containerColor = Color.Transparent),
             leadingContent = { Icon(Icons.Rounded.Report, contentDescription = null) },
-            headlineContent = { Text(formatNumber(key)) },
+            headlineContent = { Text(formatNumber(key, region)) },
             supportingContent = { Text("Marked as spam") },
             trailingContent = {
                 IconButton(onClick = onDelete) {
-                    Icon(Icons.Rounded.Delete, contentDescription = "Remove ${formatNumber(key)} from spam numbers")
+                    Icon(Icons.Rounded.Delete, contentDescription = "Remove ${formatNumber(key, region)} from spam numbers")
                 }
             },
         )
@@ -257,14 +259,15 @@ private fun SpamNumberRow(key: String, onDelete: () -> Unit) {
 @Composable
 private fun RuleListItem(rule: Rule, onToggle: (Boolean) -> Unit) {
     val kind = if (rule.type == RuleType.NUMBER) "Number" else "Caller name"
+    val region = currentRegion()
     ListItem(
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
         headlineContent = { Text(rule.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
         overlineContent = { Text(if (rule.isDefault) "$kind · Built-in" else kind) },
         supportingContent = {
-            val simple = remember(rule.type, rule.pattern) { parseSimple(rule.type, rule.pattern) }
+            val simple = remember(rule.type, rule.pattern, region) { parseSimple(rule.type, rule.pattern, region) }
             Text(
-                simple?.describe() ?: rule.pattern,
+                simple?.describe(region) ?: rule.pattern,
                 fontFamily = if (simple == null) FontFamily.Monospace else null,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,

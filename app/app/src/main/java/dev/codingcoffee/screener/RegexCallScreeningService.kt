@@ -24,13 +24,14 @@ class RegexCallScreeningService : CallScreeningService() {
         val timestamp = System.currentTimeMillis()
         val app = application as ScreenApp
         val rawNumber = runCatching { callDetails.handle?.schemeSpecificPart }.getOrNull()
-        val number = normalizeNumber(rawNumber)
         val callerName = runCatching { callDetails.callerDisplayName }.getOrNull()
         val direction = runCatching { callDetails.callDirection }.getOrDefault(Call.Details.DIRECTION_UNKNOWN)
         val incoming = direction == Call.Details.DIRECTION_INCOMING
 
+        val engine = awaitEngine(app)
+        val number = normalizeNumber(rawNumber, app.settings.value?.region)
         val decision = try {
-            awaitEngine(app)?.evaluate(number, callerName, incoming)
+            engine?.evaluate(number, callerName, incoming)
         } catch (e: Exception) {
             Log.e(ScreenApp.TAG, "Rule evaluation failed, allowing call", e)
             null

@@ -8,8 +8,12 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
@@ -22,6 +26,7 @@ import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Policy
+import androidx.compose.material.icons.rounded.Public
 import androidx.compose.material.icons.rounded.Shield
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -30,6 +35,8 @@ import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
@@ -51,14 +58,18 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.codingcoffee.screener.app
 import dev.codingcoffee.screener.data.ThemeMode
+import dev.codingcoffee.screener.rules.callingCode
 import dev.codingcoffee.screener.rules.isDefault
+import dev.codingcoffee.screener.rules.supportedRegions
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.Locale
 
 private const val DEVELOPER_NAME = "Ameya Shenoy"
 private const val DEVELOPER_URL = "https://www.codingcoffee.dev"
@@ -74,6 +85,8 @@ fun SettingsScreen(onOpenPrivacy: () -> Unit, onOpenLicenses: () -> Unit) {
     val roleHeld = rememberRoleHeld()
     val theme = settings?.theme ?: ThemeMode.SYSTEM
     var confirmClear by rememberSaveable { mutableStateOf(false) }
+    var pickCountry by rememberSaveable { mutableStateOf(false) }
+    val region = currentRegion()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val colors = MaterialTheme.colorScheme
     val scope = rememberCoroutineScope()
@@ -160,6 +173,15 @@ fun SettingsScreen(onOpenPrivacy: () -> Unit, onOpenLicenses: () -> Unit) {
                             else "Inactive. Tap to choose Screener as your caller ID & spam app.",
                             color = if (roleHeld) colors.onSurfaceVariant else colors.error,
                         )
+                    },
+                )
+                ListItem(
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                    modifier = Modifier.clickable { pickCountry = true },
+                    leadingContent = { Icon(Icons.Rounded.Public, contentDescription = null) },
+                    headlineContent = { Text("Country") },
+                    supportingContent = {
+                        Text(countryName(region) + if (settings?.country == null) " (automatic)" else "")
                     },
                 )
             }
@@ -256,6 +278,18 @@ fun SettingsScreen(onOpenPrivacy: () -> Unit, onOpenLicenses: () -> Unit) {
         }
     }
 
+    if (pickCountry) {
+        CountryDialog(
+            selected = settings?.country,
+            detected = settings?.detectedRegion ?: region,
+            onSelect = { country ->
+                pickCountry = false
+                app.scope.launch { app.settingsStore.setCountry(country) }
+            },
+            onDismiss = { pickCountry = false },
+        )
+    }
+
     if (confirmClear) {
         AlertDialog(
             onDismissRequest = { confirmClear = false },
@@ -272,6 +306,60 @@ fun SettingsScreen(onOpenPrivacy: () -> Unit, onOpenLicenses: () -> Unit) {
         )
     }
 }
+
+@Composable
+private fun CountryDialog(selected: String?, detected: String, onSelect: (String?) -> Unit, onDismiss: () -> Unit) {
+    var query by rememberSaveable { mutableStateOf("") }
+    val countries = remember { supportedRegions.map { it to countryName(it) }.sortedBy { it.second } }
+    val search = query.trim()
+    val visible = countries.filter { (code, name) ->
+        name.contains(search, ignoreCase = true) || code.equals(search, ignoreCase = true)
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Country") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    "Numbers without a country code are treated as being from here.",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                OutlinedTextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    placeholder = { Text("Search") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                LazyColumn(Modifier.heightIn(max = 360.dp)) {
+                    if (search.isEmpty()) {
+                        item { CountryOption("Automatic (${countryName(detected)})", selected == null) { onSelect(null) } }
+                    }
+                    items(visible, key = { it.first }) { (code, name) ->
+                        CountryOption("$name +${callingCode(code)}", selected == code) { onSelect(code) }
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
+}
+
+@Composable
+private fun CountryOption(label: String, selected: Boolean, onClick: () -> Unit) {
+    ListItem(
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+        modifier = Modifier.selectable(selected, role = Role.RadioButton, onClick = onClick),
+        leadingContent = { RadioButton(selected = selected, onClick = null) },
+        headlineContent = { Text(label) },
+    )
+}
+
+private fun countryName(region: String): String =
+    runCatching { Locale.Builder().setRegion(region).build().displayCountry }.getOrNull()?.takeIf { it.isNotBlank() }
+        ?: region
 
 @Composable
 private fun LinkRow(icon: ImageVector, title: String, subtitle: String? = null, onClick: () -> Unit) {

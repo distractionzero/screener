@@ -17,11 +17,14 @@ class RuleEngineTest {
     ) = Rule(name, name, type, pattern, action, enabled)
 
     @Test
-    fun `normalize strips spaces dashes and parentheses`() {
-        assertEquals("+919876543210", normalizeNumber("+91 98765-43210"))
-        assertEquals("08012345678", normalizeNumber("(080) 1234 5678"))
-        assertEquals("1409806457", normalizeNumber("1409806457"))
-        assertNull(normalizeNumber(null))
+    fun `normalize converts to international format for the home region`() {
+        assertEquals("+919876543210", normalizeNumber("+91 98765-43210", INDIA))
+        assertEquals("+918012345678", normalizeNumber("(080) 1234 5678", INDIA))
+        assertEquals("+911409806457", normalizeNumber("1409806457", INDIA))
+        assertEquals("+12125550123", normalizeNumber("(212) 555-0123", "US"))
+        assertEquals("+12125550123", normalizeNumber("1 212 555 0123", "US"))
+        assertEquals("+442079460958", normalizeNumber("+44 20 7946 0958", "US"))
+        assertNull(normalizeNumber(null, INDIA))
     }
 
     @Test
@@ -58,9 +61,10 @@ class RuleEngineTest {
 
     @Test
     fun `160 series is allowed even with a broad block rule`() {
-        val engine = RuleEngine(DefaultRules + rule("everything", ".*", RuleAction.BLOCK), blockUnknown = true)
-        listOf("1601234567", "+911601234567", "911601234567", "01601234567").forEach {
-            assertEquals(it, Decision(false, "Service calls (160 series)"), engine.evaluate(it, null, incoming = true))
+        val engine = RuleEngine(defaultRules(INDIA) + rule("everything", ".*", RuleAction.BLOCK), blockUnknown = true)
+        listOf("1601234567", "+911601234567", "01601234567").forEach {
+            val number = normalizeNumber(it, INDIA)
+            assertEquals(it, Decision(false, "Service calls (160 series)"), engine.evaluate(number, null, incoming = true))
         }
     }
 
@@ -71,8 +75,17 @@ class RuleEngineTest {
         assertEquals(Decision(true, "Carrier spam label"), engine.evaluate("+917012345678", "Spam Alert", true))
         assertEquals(Decision(false, REASON_NONE), engine.evaluate("+917012345678", "Asha", true))
         assertEquals(Decision(true, "Bangalore cloud telephony (8071)"), engine.evaluate("+918071234567", null, true))
-        assertEquals(Decision(true, "Ahmedabad cloud telephony (7935)"), engine.evaluate("07935123456", null, true))
+        assertEquals(Decision(true, "Ahmedabad cloud telephony (7935)"), engine.evaluate("+917935123456", null, true))
         assertEquals(Decision(true, "Ahmedabad cloud telephony (7971)"), engine.evaluate("+917971234567", null, true))
+    }
+
+    @Test
+    fun `india defaults never match other countries`() {
+        val engine = RuleEngine(DefaultRules, blockUnknown = false)
+        listOf("+14085551234", "+16015551234", "+12125550123").forEach {
+            assertEquals(it, Decision(false, REASON_NONE), engine.evaluate(it, null, incoming = true))
+        }
+        assertEquals(listOf("default-spam"), defaultRules("US").map { it.id })
     }
 
     @Test
@@ -80,10 +93,10 @@ class RuleEngineTest {
         val engine = RuleEngine(
             listOf(rule("allow all", ".*", RuleAction.ALLOW)),
             blockUnknown = false,
-            spamNumbers = setOf(spamKey("+919876543210")),
+            spamNumbers = setOf(migrateSpamKey("9876543210")),
         )
         listOf("+919876543210", "09876543210", "9876543210").forEach {
-            assertEquals(it, Decision(true, REASON_SPAM), engine.evaluate(it, null, incoming = true))
+            assertEquals(it, Decision(true, REASON_SPAM), engine.evaluate(normalizeNumber(it, INDIA), null, incoming = true))
         }
         assertFalse(engine.evaluate("+919876543211", null, incoming = true).block)
     }

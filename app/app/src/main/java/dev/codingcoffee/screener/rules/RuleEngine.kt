@@ -19,27 +19,24 @@ const val REASON_NONE = "none"
 const val REASON_UNKNOWN = "unknown caller"
 const val REASON_SPAM = "marked as spam"
 
-val DefaultRules = listOf(
-    Rule("default-140", "Telemarketing (140 series)", RuleType.NUMBER, """^(\+?91|0)?140\d*$""", RuleAction.BLOCK),
-    Rule("default-160", "Service calls (160 series)", RuleType.NUMBER, """^(\+?91|0)?160\d*$""", RuleAction.ALLOW),
-    Rule("default-8071", "Bangalore cloud telephony (8071)", RuleType.NUMBER, """^(\+?91|0)?8071\d*$""", RuleAction.BLOCK),
-    Rule("default-7935", "Ahmedabad cloud telephony (7935)", RuleType.NUMBER, """^(\+?91|0)?7935\d*$""", RuleAction.BLOCK),
-    Rule("default-7971", "Ahmedabad cloud telephony (7971)", RuleType.NUMBER, """^(\+?91|0)?7971\d*$""", RuleAction.BLOCK),
-    Rule("default-spam", "Carrier spam label", RuleType.CALLER_NAME, """(?i)spam|fraud|scam""", RuleAction.BLOCK),
+private val IndiaRules = listOf(
+    Rule("default-140", "Telemarketing (140 series)", RuleType.NUMBER, """^\+91140\d*$""", RuleAction.BLOCK),
+    Rule("default-160", "Service calls (160 series)", RuleType.NUMBER, """^\+91160\d*$""", RuleAction.ALLOW),
+    Rule("default-8071", "Bangalore cloud telephony (8071)", RuleType.NUMBER, """^\+918071\d*$""", RuleAction.BLOCK),
+    Rule("default-7935", "Ahmedabad cloud telephony (7935)", RuleType.NUMBER, """^\+917935\d*$""", RuleAction.BLOCK),
+    Rule("default-7971", "Ahmedabad cloud telephony (7971)", RuleType.NUMBER, """^\+917971\d*$""", RuleAction.BLOCK),
 )
+
+private val SpamLabelRule =
+    Rule("default-spam", "Carrier spam label", RuleType.CALLER_NAME, """(?i)spam|fraud|scam""", RuleAction.BLOCK)
+
+val DefaultRules = IndiaRules + SpamLabelRule
+
+fun defaultRules(region: String): List<Rule> = if (region == INDIA) DefaultRules else listOf(SpamLabelRule)
 
 private val DefaultRuleIds = DefaultRules.map { it.id }.toSet()
 
 val Rule.isDefault: Boolean get() = id in DefaultRuleIds
-
-fun normalizeNumber(raw: String?): String? =
-    raw?.filterNot { it == ' ' || it == '-' || it == '(' || it == ')' }
-
-fun spamKey(number: String): String = when {
-    number.startsWith("+91") -> number.drop(3)
-    number.startsWith("0") -> number.drop(1)
-    else -> number
-}
 
 fun compilePattern(pattern: String): Result<Regex> = runCatching { Regex(pattern) }
 
@@ -67,7 +64,7 @@ class RuleEngine(
 
     fun evaluate(number: String?, callerName: String?, incoming: Boolean): Decision {
         if (!incoming) return Decision(block = false, reason = REASON_NONE)
-        if (number != null && spamKey(number) in spamNumbers) return Decision(block = true, reason = REASON_SPAM)
+        if (number != null && number in spamNumbers) return Decision(block = true, reason = REASON_SPAM)
         allow.firstOrNull { (rule, regex) -> rule.matches(regex, number, callerName) }
             ?.let { return Decision(block = false, reason = it.first.name) }
         block.firstOrNull { (rule, regex) -> rule.matches(regex, number, callerName) }

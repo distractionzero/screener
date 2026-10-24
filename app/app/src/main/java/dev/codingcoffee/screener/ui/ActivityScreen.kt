@@ -51,7 +51,7 @@ import dev.codingcoffee.screener.data.LogEntry
 import dev.codingcoffee.screener.rules.REASON_NONE
 import dev.codingcoffee.screener.rules.REASON_SPAM
 import dev.codingcoffee.screener.rules.REASON_UNKNOWN
-import dev.codingcoffee.screener.rules.spamKey
+import dev.codingcoffee.screener.rules.normalizeNumber
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -73,6 +73,7 @@ fun ActivityScreen(onOpenEntry: (String) -> Unit) {
     val entries by app.callLog.entries.collectAsStateWithLifecycle()
     val settings by app.settings.collectAsStateWithLifecycle()
     val spamNumbers = settings?.spamNumbers.orEmpty()
+    val region = currentRegion()
     val scope = rememberCoroutineScope()
     val snackbar = remember { SnackbarHostState() }
     val roleHeld = rememberRoleHeld()
@@ -146,11 +147,11 @@ fun ActivityScreen(onOpenEntry: (String) -> Unit) {
                 else -> byDay.forEach { (date, calls) ->
                     item(key = date.toString()) { SectionHeader(dayHeader(date, today), centered = true) }
                     items(calls, key = { it.id }) { entry ->
-                        val number = entry.number?.takeUnless { entry.blocked || spamKey(it) in spamNumbers }
+                        val number = entry.number?.takeUnless { entry.blocked || normalizeNumber(it, region) in spamNumbers }
                         CallRow(
                             entry,
                             onClick = { onOpenEntry(entry.id) },
-                            onMarkSpam = number?.let { { scope.markSpam(app, it, snackbar) } },
+                            onMarkSpam = number?.let { { scope.markSpam(app, it, region, snackbar) } },
                         )
                     }
                 }
@@ -232,6 +233,7 @@ private fun blockedCounts(entries: List<LogEntry>): Triple<Int, Int, Int> {
 @Composable
 private fun CallRow(entry: LogEntry, onClick: () -> Unit, onMarkSpam: (() -> Unit)?) {
     val colors = MaterialTheme.colorScheme
+    val region = currentRegion()
     val label = when {
         entry.reason == REASON_UNKNOWN -> "Unknown caller"
         entry.reason == REASON_SPAM -> "Marked as spam"
@@ -250,7 +252,7 @@ private fun CallRow(entry: LogEntry, onClick: () -> Unit, onMarkSpam: (() -> Uni
                 }
             },
             headlineContent = {
-                Text(formatNumber(entry.rawNumber ?: entry.number), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(formatNumber(entry.rawNumber ?: entry.number, region), maxLines = 1, overflow = TextOverflow.Ellipsis)
             },
             supportingContent = {
                 Text(

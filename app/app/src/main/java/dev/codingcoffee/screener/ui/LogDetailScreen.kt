@@ -58,7 +58,8 @@ import dev.codingcoffee.screener.data.str
 import dev.codingcoffee.screener.rules.SimpleMatch
 import dev.codingcoffee.screener.rules.SimpleRule
 import dev.codingcoffee.screener.rules.escapeRegex
-import dev.codingcoffee.screener.rules.spamKey
+import dev.codingcoffee.screener.rules.isValid
+import dev.codingcoffee.screener.rules.normalizeNumber
 import dev.codingcoffee.screener.rules.toPattern
 import kotlinx.coroutines.launch
 import java.text.DateFormat
@@ -71,6 +72,7 @@ fun LogDetailScreen(id: String?, onBack: () -> Unit, onCreateRule: (pattern: Str
     val entries by app.callLog.entries.collectAsStateWithLifecycle()
     val entry = entries?.find { it.id == id }
     val settings by app.settings.collectAsStateWithLifecycle()
+    val region = currentRegion()
     val scope = rememberCoroutineScope()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val snackbar = remember { SnackbarHostState() }
@@ -79,7 +81,7 @@ fun LogDetailScreen(id: String?, onBack: () -> Unit, onCreateRule: (pattern: Str
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
             MediumTopAppBar(
-                title = { Text(entry?.let { formatNumber(it.rawNumber ?: it.number) } ?: "Call") },
+                title = { Text(entry?.let { formatNumber(it.rawNumber ?: it.number, region) } ?: "Call") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
@@ -112,7 +114,7 @@ fun LogDetailScreen(id: String?, onBack: () -> Unit, onCreateRule: (pattern: Str
             }
             entry.number?.let { number ->
                 FilledTonalButton(
-                    onClick = { onCreateRule(exactNumberPattern(number), formatNumber(number)) },
+                    onClick = { onCreateRule(exactNumberPattern(number, region), formatNumber(number, region)) },
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Icon(Icons.Rounded.Add, contentDescription = null, modifier = Modifier.size(18.dp))
@@ -120,9 +122,9 @@ fun LogDetailScreen(id: String?, onBack: () -> Unit, onCreateRule: (pattern: Str
                     Text("Create rule from this number")
                 }
                 if (!entry.blocked) {
-                    val marked = spamKey(number) in settings?.spamNumbers.orEmpty()
+                    val marked = normalizeNumber(number, region) in settings?.spamNumbers.orEmpty()
                     OutlinedButton(
-                        onClick = { scope.markSpam(app, number, snackbar) },
+                        onClick = { scope.markSpam(app, number, region, snackbar) },
                         enabled = !marked,
                         modifier = Modifier.fillMaxWidth(),
                     ) {
@@ -203,6 +205,5 @@ private fun keyFields(entry: LogEntry): List<Pair<String, String>> {
     )
 }
 
-private fun exactNumberPattern(number: String): String =
-    if (number.startsWith("+") && !number.startsWith("+91")) "^${escapeRegex(number)}$"
-    else SimpleRule(SimpleMatch.EXACTLY, number).toPattern()
+private fun exactNumberPattern(number: String, region: String): String =
+    SimpleRule(SimpleMatch.EXACTLY, number).takeIf { it.isValid(region) }?.toPattern(region) ?: "^${escapeRegex(number)}$"

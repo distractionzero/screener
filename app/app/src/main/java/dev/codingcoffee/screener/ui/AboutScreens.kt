@@ -50,6 +50,7 @@ private val Libraries = listOf(
     Library("Material Icons and Material Symbols", "Google", "Apache License 2.0", APACHE_2),
     Library("Kotlin Standard Library", "JetBrains", "Apache License 2.0", APACHE_2),
     Library("kotlinx.coroutines", "JetBrains", "Apache License 2.0", APACHE_2),
+    Library("libphonenumber", "Google", "Apache License 2.0", APACHE_2),
 )
 
 private val PrivacyPolicy = listOf(

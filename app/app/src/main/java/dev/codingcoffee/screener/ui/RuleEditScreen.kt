@@ -83,9 +83,10 @@ fun RuleEditScreen(id: String?, initialPattern: String?, initialName: String?, o
         BuiltInRuleScreen(existing.id, onDone)
         return
     }
+    val region = currentRegion()
     val startPattern = existing?.pattern ?: initialPattern.orEmpty()
     val startType = existing?.type ?: RuleType.NUMBER
-    val parsed = remember { parseSimple(startType, startPattern) }
+    val parsed = remember { parseSimple(startType, startPattern, region) }
 
     var advanced by rememberSaveable { mutableStateOf(startPattern.isNotEmpty() && parsed == null) }
     var name by rememberSaveable { mutableStateOf(existing?.name ?: initialName.orEmpty()) }
@@ -98,7 +99,7 @@ fun RuleEditScreen(id: String?, initialPattern: String?, initialName: String?, o
     var confirmDelete by rememberSaveable { mutableStateOf(false) }
 
     val simple = SimpleRule(match, value)
-    val effectivePattern = if (advanced) pattern else simple.takeIf { it.isValid() }?.toPattern().orEmpty()
+    val effectivePattern = if (advanced) pattern else simple.takeIf { it.isValid(region) }?.toPattern(region).orEmpty()
     val regex = remember(effectivePattern) { compilePattern(effectivePattern) }
     val patternError = regex.exceptionOrNull()?.let {
         if (it is PatternSyntaxException) {
@@ -111,8 +112,8 @@ fun RuleEditScreen(id: String?, initialPattern: String?, initialName: String?, o
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
     fun switchMode(toAdvanced: Boolean) {
-        if (toAdvanced && simple.isValid()) pattern = simple.toPattern()
-        if (!toAdvanced) parseSimple(type, pattern)?.let { match = it.match; value = it.value }
+        if (toAdvanced && simple.isValid(region)) pattern = simple.toPattern(region)
+        if (!toAdvanced) parseSimple(type, pattern, region)?.let { match = it.match; value = it.value }
         if (!toAdvanced && type == RuleType.CALLER_NAME) match = SimpleMatch.CONTAINS_ANY
         advanced = toAdvanced
     }
@@ -141,7 +142,7 @@ fun RuleEditScreen(id: String?, initialPattern: String?, initialName: String?, o
                     TextButton(
                         enabled = canSave,
                         onClick = {
-                            val fallbackName = if (advanced) effectivePattern else simple.describe()
+                            val fallbackName = if (advanced) effectivePattern else simple.describe(region)
                             val rule = Rule(
                                 id = existing?.id ?: UUID.randomUUID().toString(),
                                 name = name.trim().ifEmpty { fallbackName },
@@ -200,7 +201,7 @@ fun RuleEditScreen(id: String?, initialPattern: String?, initialName: String?, o
                     supportingText = {
                         Text(
                             patternError ?: if (type == RuleType.NUMBER) {
-                                "Matched against the number with spaces, dashes and brackets removed, e.g. +911409806457."
+                                "Matched against the number in international format, e.g. +12125550123."
                             } else {
                                 "Matched against the caller name your carrier sends, if any. Use (?i) to ignore case."
                             }
@@ -219,10 +220,9 @@ fun RuleEditScreen(id: String?, initialPattern: String?, initialName: String?, o
                     value = value,
                     onValueChange = { value = it },
                     label = { Text(if (match == SimpleMatch.STARTS_WITH) "Starting digits" else "Phone number") },
-                    placeholder = { Text(if (match == SimpleMatch.STARTS_WITH) "140" else "98765 43210") },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                    supportingText = { Text("No need to add +91 or a leading 0. Both are matched automatically.") },
+                    supportingText = { Text("No need to add the country code. Start with + to match another country.") },
                     modifier = Modifier.fillMaxWidth(),
                 )
             } else {
@@ -244,14 +244,14 @@ fun RuleEditScreen(id: String?, initialPattern: String?, initialName: String?, o
                 value = name,
                 onValueChange = { name = it },
                 label = { Text("Name (optional)") },
-                placeholder = { Text(if (advanced) "My rule" else simple.takeIf { it.isValid() }?.describe() ?: "My rule") },
+                placeholder = { Text(if (advanced) "My rule" else simple.takeIf { it.isValid(region) }?.describe(region) ?: "My rule") },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
                 modifier = Modifier.fillMaxWidth(),
             )
 
             val testResult = regex.getOrNull()?.takeIf { sample.isNotBlank() && effectivePattern.isNotEmpty() }?.let {
-                val subject = if (type == RuleType.NUMBER) normalizeNumber(sample).orEmpty() else sample
+                val subject = if (type == RuleType.NUMBER) normalizeNumber(sample, region).orEmpty() else sample
                 it.containsMatchIn(subject)
             }
             OutlinedTextField(
@@ -306,6 +306,7 @@ private fun BuiltInRuleScreen(id: String, onBack: () -> Unit) {
     val app = LocalContext.current.app
     val settings by app.settings.collectAsStateWithLifecycle()
     val rule = settings?.rules?.find { it.id == id }
+    val region = currentRegion()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val colors = MaterialTheme.colorScheme
 
@@ -322,7 +323,7 @@ private fun BuiltInRuleScreen(id: String, onBack: () -> Unit) {
         },
     ) { padding ->
         if (rule == null) return@Scaffold
-        val simple = remember(rule.type, rule.pattern) { parseSimple(rule.type, rule.pattern) }
+        val simple = remember(rule.type, rule.pattern, region) { parseSimple(rule.type, rule.pattern, region) }
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -362,7 +363,7 @@ private fun BuiltInRuleScreen(id: String, onBack: () -> Unit) {
                     listOfNotNull(
                         "Action" to if (rule.action == RuleAction.BLOCK) "Block" else "Allow",
                         "Match on" to if (rule.type == RuleType.NUMBER) "Number" else "Caller name",
-                        simple?.let { "Matches" to it.describe() },
+                        simple?.let { "Matches" to it.describe(region) },
                     ).forEach { (label, value) ->
                         ListItem(
                             colors = ListItemDefaults.colors(containerColor = Color.Transparent),
