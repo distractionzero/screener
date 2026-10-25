@@ -1,5 +1,6 @@
 gradle_file := "app/app/build.gradle.kts"
 changelog_dir := "fastlane/metadata/android/en-US/changelogs"
+apk_dir := "app/app/build/outputs/apk/release"
 
 release bump:
     #!/usr/bin/env bash
@@ -7,6 +8,10 @@ release bump:
 
     if [[ -n "$(git status --porcelain)" ]]; then
         echo "working tree is not clean" >&2
+        exit 1
+    fi
+    if ! command -v gh > /dev/null; then
+        echo "gh is not installed" >&2
         exit 1
     fi
 
@@ -52,6 +57,14 @@ release bump:
     mkdir -p {{changelog_dir}}
     printf '%s\n' "$notes" > "{{changelog_dir}}/$new_code.txt"
 
+    (cd app && ./gradlew clean assembleRelease)
+    if [[ ! -f {{apk_dir}}/app-release.apk ]]; then
+        echo "no signed apk in {{apk_dir}}, check the SCREENER_* signing properties" >&2
+        exit 1
+    fi
+    apk="{{apk_dir}}/screener-$new_name.apk"
+    cp {{apk_dir}}/app-release.apk "$apk"
+
     git add {{gradle_file}} "{{changelog_dir}}/$new_code.txt"
     git commit -m "chore: release $new_name"
     git tag -a "v$new_name" -m "v$new_name" -m "$notes"
@@ -59,6 +72,7 @@ release bump:
     echo "released v$new_name ($new_code)"
     printf '%s\n' "$notes"
     git push --follow-tags
+    gh release create "v$new_name" "$apk" --verify-tag --title "v$new_name" --notes "$notes"
 
     commit=$(git rev-parse "v$new_name^{commit}")
     echo
