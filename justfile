@@ -58,4 +58,4 @@ release bump:
 
     echo "released v$new_name ($new_code)"
     printf '%s\n' "$notes"
-    echo "push with: git push --follow-tags"
+    git push --follow-tags
