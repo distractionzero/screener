@@ -1,0 +1,33 @@
+Screener blocks spam and telemarketing calls using rules you control. It works alongside your existing phone app, keeps everything on your phone, and is made for Indian networks.
+
+<b>Rules you control</b>
+• Block or allow calls by phone number or by the caller name your network sends
+• Use simple "starts with", "exactly" or "contains" rules, or full regular expressions
+• Test a rule against a number before you save it
+• Optionally block every caller that isn't in your contacts
+
+<b>Made for India</b>
+Ready-made rules that you can turn on or off:
+• 140 series telemarketing numbers are blocked
+• 160 series numbers used by banks, insurance and government are always allowed
+• Common cloud telephony ranges used by marketing calls are blocked
+• Calls labelled as spam, fraud or scam by Jio, Airtel, Vi or BSNL are blocked
+
+<b>Works with your phone app</b>
+Screener doesn't replace your dialer. It only takes Android's "Caller ID & spam" role, so Google Phone or any other phone app keeps working as usual. Calls from your saved contacts never reach Screener, so they always ring.
+
+<b>See what was blocked</b>
+• Activity shows every screened call, grouped by day, with the rule that matched
+• Stats show how many calls were blocked over time
+• Mark a number as spam from its call details
+• Export and import your rules and activity as files
+
+<b>Private and offline</b>
+• No internet permission, so nothing can leave your phone
+• No ads, no analytics, no tracking, no account
+• Your rules and call log are excluded from cloud backups
+
+<b>Free and open source</b>
+Screener is licensed under the GNU GPLv3. The source code is available at https://github.com/distractionzero/screener
+
+Requires Android 10 or newer.

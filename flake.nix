@@ -40,6 +40,9 @@
               android.androidsdk
               pkgs.android-studio
               pkgs.jdk25
+              pkgs.pngquant
+              pkgs.oxipng
+              pkgs.python314
             ];
             ANDROID_HOME = sdk;
             ANDROID_SDK_ROOT = sdk;
