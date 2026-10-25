@@ -43,6 +43,7 @@
               pkgs.pngquant
               pkgs.oxipng
               pkgs.python314
+              pkgs.gh
             ];
             ANDROID_HOME = sdk;
             ANDROID_SDK_ROOT = sdk;
