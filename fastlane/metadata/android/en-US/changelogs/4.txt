@@ -1,0 +1,10 @@
+- feat: support numbers from all countries
+- fix: package name paths
+- fix: repo url
+- feat: export and import activity as jsonl
+- feat: rename app
+- feat: move settings to the last tab in the bottom bar
+- feat: group activity calls under centered day headings
+- feat: add stats tab with charts and show total blocked on activity
+- feat: export and import personal rules and spam numbers as jsonl
+- feat: hide spam action for blocked calls, add delete button to spam numbers
