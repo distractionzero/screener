@@ -125,6 +125,22 @@ $ANDROID_HOME/build-tools/36.0.0/apksigner verify --print-certs app/build/output
 The output is `app/build/outputs/apk/release/app-release.apk`. If it's named `app-release-unsigned.apk`, the
 signing properties weren't picked up.
 
+### App bundle (Play Store)
+
+```sh
+nix develop
+cd app
+./gradlew bundleRelease
+jarsigner -verify -verbose -certs app/build/outputs/bundle/release/app-release.aab
+```
+
+The output is `app/build/outputs/bundle/release/app-release.aab`, signed with the same key. With Play App
+Signing, this key acts as the upload key. `apksigner` doesn't read bundles, so `jarsigner` checks the
+signature instead.
+
+Bump `versionCode` and `versionName` in `app/app/build.gradle.kts` before each release; Play rejects a
+`versionCode` it has already seen.
+
 ### Install and run on the emulator
 
 Debug and release builds are signed with different keys, so uninstall the debug build first. This wipes the
