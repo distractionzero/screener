@@ -59,3 +59,36 @@ release bump:
     echo "released v$new_name ($new_code)"
     printf '%s\n' "$notes"
     git push --follow-tags
+
+    commit=$(git rev-parse "v$new_name^{commit}")
+    echo
+    echo "metadata/dev.codingcoffee.screener.yml for fdroiddata:"
+    echo
+    cat <<EOF
+    Categories:
+      - Phone & SMS
+    License: GPL-3.0-only
+    AuthorName: Ameya Shenoy
+    WebSite: https://screener.codingcoffee.dev
+    SourceCode: https://github.com/distractionzero/screener
+    IssueTracker: https://github.com/distractionzero/screener/issues
+    Changelog: https://github.com/distractionzero/screener/tags
+
+    AutoName: Screener
+
+    RepoType: git
+    Repo: https://github.com/distractionzero/screener.git
+
+    Builds:
+      - versionName: $new_name
+        versionCode: $new_code
+        commit: $commit
+        subdir: app/app
+        gradle:
+          - yes
+
+    AutoUpdateMode: Version
+    UpdateCheckMode: Tags
+    CurrentVersion: $new_name
+    CurrentVersionCode: $new_code
+    EOF
