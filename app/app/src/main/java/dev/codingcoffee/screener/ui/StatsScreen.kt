@@ -227,9 +227,9 @@ private fun StatsCharts(stats: Stats) {
                 Tooltip(
                     day.date.format(DayLabel),
                     listOf(
-                        colors.blocked to "${day.blocked} blocked",
-                        colors.missed to "${day.missed} missed spam",
                         colors.notSpam to "${day.notSpam} not spam",
+                        colors.missed to "${day.missed} missed spam",
+                        colors.blocked to "${day.blocked} blocked",
                     ),
                 )
             },
