@@ -43,6 +43,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -94,6 +95,9 @@ private val ColorScheme.notSpam get() = lerp(primaryContainer, primary, 0.3f)
 private val DayLabel = DateTimeFormatter.ofPattern("d MMM")
 
 private enum class Chart { HOUR, DAY, RATE }
+
+/** Starts at 3am so the day (9am–9pm) sits in the middle. */
+private val DayHours = List(24) { (it + 3) % 24 }
 
 private class Tooltip(val title: String, val lines: List<Pair<Color, String>>)
 
@@ -197,13 +201,15 @@ private fun StatsCharts(stats: Stats) {
     SectionHeader("Spam by time of day")
     ChartCard {
         StackedBars(
-            bars = stats.byHour.map { listOf(it) },
+            bars = DayHours.map { listOf(stats.byHour[it]) },
             barColors = listOf(colors.blocked),
-            labels = listOf(0, 6, 12, 18).map { it to hourLabel(it) },
+            labels = listOf(6, 18).map { it to hourLabel(DayHours[it]) },
+            labelGrid = true,
             selected = selectedIn(Chart.HOUR),
             onSelect = { select(Chart.HOUR, it) },
             tooltip = {
-                Tooltip("${hourLabel(it)} – ${hourLabel((it + 1) % 24)}", listOf(colors.blocked to "${stats.byHour[it]} blocked"))
+                val hour = DayHours[it]
+                Tooltip("${hourLabel(hour)} – ${hourLabel((hour + 1) % 24)}", listOf(colors.blocked to "${stats.byHour[hour]} blocked"))
             },
         )
     }
@@ -289,6 +295,8 @@ private fun StackedBars(
     selected: Int?,
     onSelect: (Int?) -> Unit,
     tooltip: (Int) -> Tooltip,
+    /** Puts labels on slot edges with dotted lines instead of under slot centers. */
+    labelGrid: Boolean = false,
 ) {
     val colors = MaterialTheme.colorScheme
     val measurer = rememberTextMeasurer()
@@ -316,6 +324,14 @@ private fun StackedBars(
         val slot = plot.width / bars.size
         val barWidth = (slot * 0.7f).coerceIn(1f, 24.dp.toPx())
         val radius = CornerRadius((barWidth / 4).coerceAtMost(4.dp.toPx()))
+        val labelOffset = if (labelGrid) 0f else 0.5f
+        if (labelGrid) {
+            val dash = PathEffect.dashPathEffect(floatArrayOf(4.dp.toPx(), 4.dp.toPx()))
+            labels.filter { (index, _) -> index in 1 until bars.size }.forEach { (index, _) ->
+                val x = plot.left + index * slot
+                drawLine(colors.outlineVariant, Offset(x, plot.top), Offset(x, plot.bottom), 1.dp.toPx(), pathEffect = dash)
+            }
+        }
         bars.forEachIndexed { i, segments ->
             val x = plot.left + i * slot + (slot - barWidth) / 2
             var bottom = plot.bottom
@@ -326,7 +342,7 @@ private fun StackedBars(
                 drawRoundRect(barColors[s], Offset(x, bottom), Size(barWidth, height), radius)
             }
         }
-        xLabels(measurer, labelStyle, labels, plot, slot)
+        xLabels(measurer, labelStyle, labels, plot, slot, labelOffset)
         selected?.let { i ->
             val top = plot.bottom - plot.height * bars[i].sum() / max
             drawTooltip(tooltip(i), Offset(plot.left + i * slot + slot / 2, top))
@@ -470,10 +486,11 @@ private fun DrawScope.xLabels(
     labels: List<Pair<Int, String>>,
     plot: Plot,
     slot: Float,
+    offset: Float = 0.5f,
 ) {
     labels.forEach { (index, text) ->
         val layout = measurer.measure(text, style)
-        val center = plot.left + index * slot + slot / 2
+        val center = plot.left + (index + offset) * slot
         val x = (center - layout.size.width / 2).coerceIn(plot.left, size.width - layout.size.width)
         drawText(layout, topLeft = Offset(x, plot.bottom + 4.dp.toPx()))
     }
