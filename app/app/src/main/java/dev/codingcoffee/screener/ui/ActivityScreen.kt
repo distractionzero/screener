@@ -56,6 +56,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoUnit
 import java.time.temporal.TemporalAdjusters
 import java.time.temporal.WeekFields
 import java.util.Locale
@@ -164,6 +165,7 @@ fun ActivityScreen(onOpenEntry: (String) -> Unit) {
 private fun StatusCard(roleHeld: Boolean, entries: List<LogEntry>) {
     val requestRole = rememberRoleRequest()
     val (today, week, total) = remember(entries) { blockedCounts(entries) }
+    val days = remember(entries) { daysSinceFirstCall(entries) }
     val colors = MaterialTheme.colorScheme
 
     Card(
@@ -200,6 +202,7 @@ private fun StatusCard(roleHeld: Boolean, entries: List<LogEntry>) {
                     Stat(today, "Today", Modifier.weight(1f))
                     Stat(week, "This week", Modifier.weight(1f))
                     Stat(total, "All time", Modifier.weight(1f))
+                    Stat(days, "Days active", Modifier.weight(1f))
                 }
             }
         }
@@ -208,7 +211,7 @@ private fun StatusCard(roleHeld: Boolean, entries: List<LogEntry>) {
 
 @Composable
 private fun Stat(value: Int, label: String, modifier: Modifier = Modifier) {
-    Column(modifier) {
+    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
         Text(value.toString(), style = MaterialTheme.typography.headlineMedium)
         Text(label, style = MaterialTheme.typography.labelMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
@@ -228,6 +231,12 @@ private fun blockedCounts(entries: List<LogEntry>): Triple<Int, Int, Int> {
     val weekStart = today.with(TemporalAdjusters.previousOrSame(WeekFields.of(Locale.getDefault()).firstDayOfWeek))
     val dates = entries.filter { it.blocked }.map { Instant.ofEpochMilli(it.timestamp).atZone(zone).toLocalDate() }
     return Triple(dates.count { it == today }, dates.count { !it.isBefore(weekStart) }, dates.size)
+}
+
+private fun daysSinceFirstCall(entries: List<LogEntry>): Int {
+    val zone = ZoneId.systemDefault()
+    val first = entries.minOfOrNull { it.timestamp } ?: return 0
+    return ChronoUnit.DAYS.between(Instant.ofEpochMilli(first).atZone(zone).toLocalDate(), LocalDate.now(zone)).toInt()
 }
 
 @Composable
