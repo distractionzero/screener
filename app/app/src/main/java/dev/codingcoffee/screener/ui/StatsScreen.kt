@@ -2,6 +2,7 @@ package dev.codingcoffee.screener.ui
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -31,6 +32,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -44,12 +46,15 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.toSize
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.codingcoffee.screener.app
 import dev.codingcoffee.screener.data.LogEntry
@@ -84,6 +89,10 @@ private val ColorScheme.blocked get() = lerp(errorContainer, error, 0.3f)
 private val ColorScheme.allowed get() = lerp(primaryContainer, primary, 0.3f)
 
 private val DayLabel = DateTimeFormatter.ofPattern("d MMM")
+
+private enum class Chart { HOUR, DAY, RATE }
+
+private class Tooltip(val title: String, val lines: List<Pair<Color, String>>)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -171,18 +180,40 @@ private fun Tile(label: String, value: Int, modifier: Modifier) {
 @Composable
 private fun StatsCharts(stats: Stats) {
     val colors = MaterialTheme.colorScheme
+    var selected by remember(stats) { mutableStateOf<Pair<Chart, Int>?>(null) }
+    val selectedIn = { chart: Chart -> selected?.takeIf { it.first == chart }?.second }
+    val select = { chart: Chart, index: Int? ->
+        selected = index?.let { chart to it }.takeIf { it != selected }
+    }
 
     SectionHeader("Spam by time of day")
     ChartCard {
         StackedBars(
             bars = stats.byHour.map { it to 0 },
-            labels = listOf(0 to "12am", 6 to "6am", 12 to "12pm", 18 to "6pm"),
+            labels = listOf(0, 6, 12, 18).map { it to hourLabel(it) },
+            selected = selectedIn(Chart.HOUR),
+            onSelect = { select(Chart.HOUR, it) },
+            tooltip = {
+                Tooltip("${hourLabel(it)} – ${hourLabel((it + 1) % 24)}", listOf(colors.blocked to "${stats.byHour[it]} blocked"))
+            },
         )
     }
 
     SectionHeader("Calls per day")
     ChartCard {
-        StackedBars(bars = stats.days.map { it.blocked to it.allowed }, labels = dayLabels(stats.days))
+        StackedBars(
+            bars = stats.days.map { it.blocked to it.allowed },
+            labels = dayLabels(stats.days),
+            selected = selectedIn(Chart.DAY),
+            onSelect = { select(Chart.DAY, it) },
+            tooltip = {
+                val day = stats.days[it]
+                Tooltip(
+                    day.date.format(DayLabel),
+                    listOf(colors.blocked to "${day.blocked} blocked", colors.allowed to "${day.allowed} allowed"),
+                )
+            },
+        )
         Row(Modifier.padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             Legend("Blocked", colors.blocked)
             Legend("Allowed", colors.allowed)
@@ -199,7 +230,7 @@ private fun StatsCharts(stats: Stats) {
             color = colors.onSurfaceVariant,
             modifier = Modifier.padding(bottom = 12.dp),
         )
-        RateLine(stats.days, dayLabels(stats.days))
+        RateLine(stats.days, dayLabels(stats.days), selectedIn(Chart.RATE)) { select(Chart.RATE, it) }
     }
 
     SectionHeader("Blocks by rule")
@@ -232,18 +263,32 @@ private fun Legend(label: String, color: Color) {
 }
 
 @Composable
-private fun StackedBars(bars: List<Pair<Int, Int>>, labels: List<Pair<Int, String>>) {
+private fun StackedBars(
+    bars: List<Pair<Int, Int>>,
+    labels: List<Pair<Int, String>>,
+    selected: Int?,
+    onSelect: (Int?) -> Unit,
+    tooltip: (Int) -> Tooltip,
+) {
     val colors = MaterialTheme.colorScheme
     val measurer = rememberTextMeasurer()
     val labelStyle = MaterialTheme.typography.labelSmall.copy(color = colors.onSurfaceVariant)
     val max = bars.maxOfOrNull { it.first + it.second }?.coerceAtLeast(1) ?: 1
+    val select by rememberUpdatedState(onSelect)
+    val drawTooltip = tooltipDrawer(measurer)
 
     Canvas(
         Modifier
             .fillMaxWidth()
             .height(180.dp)
+            .pointerInput(bars) {
+                detectTapGestures { tap ->
+                    val plot = plotArea(measurer, labelStyle, "$max", size.toSize())
+                    select(slotAt(tap.x, plot, bars.size))
+                }
+            }
     ) {
-        val plot = plotArea(measurer, labelStyle, "$max")
+        val plot = plotArea(measurer, labelStyle, "$max", size)
         gridLine(plot, plot.top, colors.outlineVariant)
         gridLine(plot, plot.bottom, colors.outlineVariant)
         yLabel(measurer, labelStyle, "$max", plot.top)
@@ -264,21 +309,34 @@ private fun StackedBars(bars: List<Pair<Int, Int>>, labels: List<Pair<Int, Strin
             }
         }
         xLabels(measurer, labelStyle, labels, plot, slot)
+        selected?.let { i ->
+            val (blocked, allowed) = bars[i]
+            val top = plot.bottom - plot.height * (blocked + allowed) / max
+            drawTooltip(tooltip(i), Offset(plot.left + i * slot + slot / 2, top))
+        }
     }
 }
 
 @Composable
-private fun RateLine(days: List<Day>, labels: List<Pair<Int, String>>) {
+private fun RateLine(days: List<Day>, labels: List<Pair<Int, String>>, selected: Int?, onSelect: (Int?) -> Unit) {
     val colors = MaterialTheme.colorScheme
     val measurer = rememberTextMeasurer()
     val labelStyle = MaterialTheme.typography.labelSmall.copy(color = colors.onSurfaceVariant)
+    val select by rememberUpdatedState(onSelect)
+    val drawTooltip = tooltipDrawer(measurer)
 
     Canvas(
         Modifier
             .fillMaxWidth()
             .height(160.dp)
+            .pointerInput(days) {
+                detectTapGestures { tap ->
+                    val plot = plotArea(measurer, labelStyle, "100%", size.toSize())
+                    select(slotAt(tap.x, plot, days.size)?.takeIf { days[it].total > 0 })
+                }
+            }
     ) {
-        val plot = plotArea(measurer, labelStyle, "100%")
+        val plot = plotArea(measurer, labelStyle, "100%", size)
         listOf(1f to "100%", 0.5f to "50%", 0f to "0%").forEach { (fraction, text) ->
             val y = plot.bottom - plot.height * fraction
             gridLine(plot, y, colors.outlineVariant)
@@ -299,6 +357,12 @@ private fun RateLine(days: List<Day>, labels: List<Pair<Int, String>>) {
         drawPath(path, colors.blocked, style = Stroke(2.dp.toPx()))
         if (days.size <= 31) points.filterNotNull().forEach { drawCircle(colors.blocked, 3.dp.toPx(), it) }
         xLabels(measurer, labelStyle, labels, plot, slot)
+        selected?.let { i ->
+            val point = points[i] ?: return@let
+            val rate = (days[i].blocked * 100f / days[i].total).roundToInt()
+            drawCircle(colors.blocked, 5.dp.toPx(), point)
+            drawTooltip(Tooltip(days[i].date.format(DayLabel), listOf(colors.blocked to "$rate% blocked")), point)
+        }
     }
 }
 
@@ -328,11 +392,51 @@ private class Plot(val left: Float, val top: Float, val width: Float, val bottom
 }
 
 /** Leaves room for y labels on the left and x labels below. */
-private fun DrawScope.plotArea(measurer: TextMeasurer, style: TextStyle, widestYLabel: String): Plot {
+private fun Density.plotArea(measurer: TextMeasurer, style: TextStyle, widestYLabel: String, size: Size): Plot {
     val yLabel = measurer.measure(widestYLabel, style).size
     val left = yLabel.width + 8.dp.toPx()
     return Plot(left, yLabel.height.toFloat(), size.width - left, size.height - yLabel.height - 4.dp.toPx())
 }
+
+private fun slotAt(x: Float, plot: Plot, count: Int): Int? {
+    if (count == 0 || x < plot.left) return null
+    return ((x - plot.left) / (plot.width / count)).toInt().takeIf { it < count }
+}
+
+/** Draws above the anchor, clamped to the canvas. */
+@Composable
+private fun tooltipDrawer(measurer: TextMeasurer): DrawScope.(Tooltip, Offset) -> Unit {
+    val colors = MaterialTheme.colorScheme
+    val titleStyle = MaterialTheme.typography.labelSmall.copy(color = colors.onSurfaceVariant)
+    val lineStyle = MaterialTheme.typography.labelLarge.copy(color = colors.onSurface)
+    return { tooltip, anchor ->
+        val title = measurer.measure(tooltip.title, titleStyle)
+        val lines = tooltip.lines.map { (color, text) -> color to measurer.measure(text, lineStyle) }
+        val pad = 10.dp.toPx()
+        val gap = 2.dp.toPx()
+        val dot = 8.dp.toPx()
+        val dotGap = 6.dp.toPx()
+        val contentWidth = maxOf(title.size.width.toFloat(), lines.maxOf { dot + dotGap + it.second.size.width })
+        val contentHeight = title.size.height + lines.sumOf { it.second.size.height } + gap * lines.size
+        val box = Size(contentWidth + pad * 2, contentHeight + pad * 2)
+        val topLeft = Offset(
+            (anchor.x - box.width / 2).coerceIn(0f, (size.width - box.width).coerceAtLeast(0f)),
+            (anchor.y - box.height - 8.dp.toPx()).coerceAtLeast(0f),
+        )
+        val radius = CornerRadius(8.dp.toPx())
+        drawRoundRect(colors.surfaceContainerLowest, topLeft, box, radius)
+        drawRoundRect(colors.outlineVariant, topLeft, box, radius, style = Stroke(1.dp.toPx()))
+        drawText(title, topLeft = topLeft + Offset(pad, pad))
+        var y = topLeft.y + pad + title.size.height + gap
+        lines.forEach { (color, layout) ->
+            drawCircle(color, dot / 2, Offset(topLeft.x + pad + dot / 2, y + layout.size.height / 2))
+            drawText(layout, topLeft = Offset(topLeft.x + pad + dot + dotGap, y))
+            y += layout.size.height + gap
+        }
+    }
+}
+
+private fun hourLabel(hour: Int) = "${(hour + 11) % 12 + 1}${if (hour < 12) "am" else "pm"}"
 
 private fun DrawScope.gridLine(plot: Plot, y: Float, color: Color) {
     drawLine(color, Offset(plot.left, y), Offset(size.width, y), 1.dp.toPx())
