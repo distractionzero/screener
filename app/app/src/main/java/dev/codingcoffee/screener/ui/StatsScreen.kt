@@ -73,7 +73,7 @@ import kotlin.math.roundToInt
 private enum class Range(val label: String, val days: Long?) { WEEK("7 days", 7), MONTH("30 days", 30), ALL("All", null) }
 
 private data class Day(val date: LocalDate, val blocked: Int, val missed: Int, val notSpam: Int) {
-    val total get() = blocked + missed + notSpam
+    val spam get() = blocked + missed
 }
 
 private data class Headline(val today: Int, val week: Int, val total: Int, val maxDay: Int)
@@ -83,7 +83,7 @@ private data class Stats(
     val days: List<Day>,
     val byReason: List<Pair<String, Int>>,
     val blocked: Int,
-    val total: Int,
+    val spam: Int,
 )
 
 private class Dated(val entry: LogEntry, val date: LocalDate, val hour: Int)
@@ -247,10 +247,10 @@ private fun StatsCharts(stats: Stats) {
 
     SectionHeader("Block rate")
     ChartCard {
-        val rate = if (stats.total == 0) 0 else (stats.blocked * 100f / stats.total).roundToInt()
+        val rate = if (stats.spam == 0) 0 else (stats.blocked * 100f / stats.spam).roundToInt()
         Text("$rate%", style = MaterialTheme.typography.headlineMedium)
         Text(
-            "${stats.blocked} of ${stats.total} calls blocked",
+            "${stats.blocked} of ${stats.spam} spam calls blocked",
             style = MaterialTheme.typography.bodySmall,
             color = colors.onSurfaceVariant,
             modifier = Modifier.padding(bottom = 12.dp),
@@ -365,7 +365,7 @@ private fun RateLine(days: List<Day>, labels: List<Pair<Int, String>>, selected:
             .pointerInput(days) {
                 detectTapGestures { tap ->
                     val plot = plotArea(measurer, labelStyle, "100%", size.toSize())
-                    select(slotAt(tap.x, plot, days.size)?.takeIf { days[it].total > 0 })
+                    select(slotAt(tap.x, plot, days.size)?.takeIf { days[it].spam > 0 })
                 }
             }
     ) {
@@ -378,8 +378,8 @@ private fun RateLine(days: List<Day>, labels: List<Pair<Int, String>>, selected:
 
         val slot = plot.width / days.size
         val points = days.mapIndexed { i, day ->
-            day.takeIf { it.total > 0 }?.let {
-                Offset(plot.left + i * slot + slot / 2, plot.bottom - plot.height * it.blocked / it.total)
+            day.takeIf { it.spam > 0 }?.let {
+                Offset(plot.left + i * slot + slot / 2, plot.bottom - plot.height * it.blocked / it.spam)
             }
         }
         val path = Path()
@@ -392,7 +392,7 @@ private fun RateLine(days: List<Day>, labels: List<Pair<Int, String>>, selected:
         xLabels(measurer, labelStyle, labels, plot, slot)
         selected?.let { i ->
             val point = points[i] ?: return@let
-            val rate = (days[i].blocked * 100f / days[i].total).roundToInt()
+            val rate = (days[i].blocked * 100f / days[i].spam).roundToInt()
             drawCircle(colors.blocked, 5.dp.toPx(), point)
             drawTooltip(Tooltip(days[i].date.format(DayLabel), listOf(colors.blocked to "$rate% blocked")), point)
         }
@@ -534,6 +534,6 @@ private fun stats(entries: List<Dated>, range: Range, today: LocalDate, isSpam: 
             .toList()
             .sortedByDescending { it.second },
         blocked = blocked.size,
-        total = inRange.size,
+        spam = days.sumOf { it.spam },
     )
 }
