@@ -69,6 +69,8 @@ import dev.codingcoffee.screener.rules.supportedRegions
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 private const val DEVELOPER_NAME = "Ameya Shenoy"
@@ -232,7 +234,7 @@ fun SettingsScreen(onOpenPrivacy: () -> Unit, onOpenLicenses: () -> Unit) {
             TonalCard {
                 ListItem(
                     colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                    modifier = Modifier.clickable { exportLauncher.launch("phone-screener-rules.jsonl") },
+                    modifier = Modifier.clickable { exportLauncher.launch(exportName("phone-screener-rules")) },
                     leadingContent = { Icon(Icons.Rounded.FileUpload, contentDescription = null) },
                     headlineContent = { Text("Export rules") },
                     supportingContent = { Text("$personalRules personal rules, $spamNumbers spam numbers") },
@@ -246,7 +248,7 @@ fun SettingsScreen(onOpenPrivacy: () -> Unit, onOpenLicenses: () -> Unit) {
                 )
                 ListItem(
                     colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                    modifier = Modifier.clickable { exportActivityLauncher.launch("screener-activity.jsonl") },
+                    modifier = Modifier.clickable { exportActivityLauncher.launch(exportName("screener-activity")) },
                     leadingContent = { Icon(Icons.Rounded.FileUpload, contentDescription = null) },
                     headlineContent = { Text("Export activity") },
                     supportingContent = { Text("${entries?.size ?: 0} calls") },
@@ -356,6 +358,10 @@ private fun CountryOption(label: String, selected: Boolean, onClick: () -> Unit)
         headlineContent = { Text(label) },
     )
 }
+
+private val ExportTimestamp = DateTimeFormatter.ofPattern("yyyy-MM-dd-HHmmss")
+
+private fun exportName(prefix: String) = "$prefix-${LocalDateTime.now().format(ExportTimestamp)}.jsonl"
 
 private fun countryName(region: String): String =
     runCatching { Locale.Builder().setRegion(region).build().displayCountry }.getOrNull()?.takeIf { it.isNotBlank() }
