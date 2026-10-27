@@ -6,6 +6,7 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -58,6 +59,7 @@ import androidx.compose.ui.unit.toSize
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.codingcoffee.screener.app
 import dev.codingcoffee.screener.data.LogEntry
+import dev.codingcoffee.screener.rules.normalizeNumber
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -69,8 +71,8 @@ import kotlin.math.roundToInt
 
 private enum class Range(val label: String, val days: Long?) { WEEK("7 days", 7), MONTH("30 days", 30), ALL("All", null) }
 
-private data class Day(val date: LocalDate, val blocked: Int, val allowed: Int) {
-    val total get() = blocked + allowed
+private data class Day(val date: LocalDate, val blocked: Int, val missed: Int, val notSpam: Int) {
+    val total get() = blocked + missed + notSpam
 }
 
 private data class Headline(val today: Int, val week: Int, val total: Int, val maxDay: Int)
@@ -86,7 +88,8 @@ private data class Stats(
 private class Dated(val entry: LogEntry, val date: LocalDate, val hour: Int)
 
 private val ColorScheme.blocked get() = lerp(errorContainer, error, 0.3f)
-private val ColorScheme.allowed get() = lerp(primaryContainer, primary, 0.3f)
+private val ColorScheme.missed get() = lerp(tertiaryContainer, tertiary, 0.3f)
+private val ColorScheme.notSpam get() = lerp(primaryContainer, primary, 0.3f)
 
 private val DayLabel = DateTimeFormatter.ofPattern("d MMM")
 
@@ -100,6 +103,9 @@ fun StatsScreen() {
     val app = LocalContext.current.app
     val entries by app.callLog.entries.collectAsStateWithLifecycle()
     var range by rememberSaveable { mutableStateOf(Range.WEEK) }
+    val settings by app.settings.collectAsStateWithLifecycle()
+    val spamNumbers = settings?.spamNumbers.orEmpty()
+    val region = currentRegion()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
     val today = LocalDate.now()
@@ -111,7 +117,9 @@ fun StatsScreen() {
         }
     }
     val headline = remember(dated, today) { dated?.let { headline(it, today) } }
-    val stats = remember(dated, range, today) { dated?.let { stats(it, range, today) } }
+    val stats = remember(dated, range, today, spamNumbers, region) {
+        dated?.let { stats(it, range, today) { entry -> normalizeNumber(entry.number, region) in spamNumbers } }
+    }
 
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
@@ -189,7 +197,8 @@ private fun StatsCharts(stats: Stats) {
     SectionHeader("Spam by time of day")
     ChartCard {
         StackedBars(
-            bars = stats.byHour.map { it to 0 },
+            bars = stats.byHour.map { listOf(it) },
+            barColors = listOf(colors.blocked),
             labels = listOf(0, 6, 12, 18).map { it to hourLabel(it) },
             selected = selectedIn(Chart.HOUR),
             onSelect = { select(Chart.HOUR, it) },
@@ -202,7 +211,8 @@ private fun StatsCharts(stats: Stats) {
     SectionHeader("Calls per day")
     ChartCard {
         StackedBars(
-            bars = stats.days.map { it.blocked to it.allowed },
+            bars = stats.days.map { listOf(it.blocked, it.missed, it.notSpam) },
+            barColors = listOf(colors.blocked, colors.missed, colors.notSpam),
             labels = dayLabels(stats.days),
             selected = selectedIn(Chart.DAY),
             onSelect = { select(Chart.DAY, it) },
@@ -210,13 +220,22 @@ private fun StatsCharts(stats: Stats) {
                 val day = stats.days[it]
                 Tooltip(
                     day.date.format(DayLabel),
-                    listOf(colors.blocked to "${day.blocked} blocked", colors.allowed to "${day.allowed} allowed"),
+                    listOf(
+                        colors.blocked to "${day.blocked} blocked",
+                        colors.missed to "${day.missed} missed spam",
+                        colors.notSpam to "${day.notSpam} not spam",
+                    ),
                 )
             },
         )
-        Row(Modifier.padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+        FlowRow(
+            Modifier.padding(top = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
             Legend("Blocked", colors.blocked)
-            Legend("Allowed", colors.allowed)
+            Legend("Missed spam", colors.missed)
+            Legend("Not spam", colors.notSpam)
         }
     }
 
@@ -264,7 +283,8 @@ private fun Legend(label: String, color: Color) {
 
 @Composable
 private fun StackedBars(
-    bars: List<Pair<Int, Int>>,
+    bars: List<List<Int>>,
+    barColors: List<Color>,
     labels: List<Pair<Int, String>>,
     selected: Int?,
     onSelect: (Int?) -> Unit,
@@ -273,7 +293,7 @@ private fun StackedBars(
     val colors = MaterialTheme.colorScheme
     val measurer = rememberTextMeasurer()
     val labelStyle = MaterialTheme.typography.labelSmall.copy(color = colors.onSurfaceVariant)
-    val max = bars.maxOfOrNull { it.first + it.second }?.coerceAtLeast(1) ?: 1
+    val max = bars.maxOfOrNull { it.sum() }?.coerceAtLeast(1) ?: 1
     val select by rememberUpdatedState(onSelect)
     val drawTooltip = tooltipDrawer(measurer)
 
@@ -296,22 +316,19 @@ private fun StackedBars(
         val slot = plot.width / bars.size
         val barWidth = (slot * 0.7f).coerceIn(1f, 24.dp.toPx())
         val radius = CornerRadius((barWidth / 4).coerceAtMost(4.dp.toPx()))
-        bars.forEachIndexed { i, (blocked, allowed) ->
+        bars.forEachIndexed { i, segments ->
             val x = plot.left + i * slot + (slot - barWidth) / 2
-            val blockedHeight = plot.height * blocked / max
-            val allowedHeight = plot.height * allowed / max
-            if (blocked > 0) {
-                drawRoundRect(colors.blocked, Offset(x, plot.bottom - blockedHeight), Size(barWidth, blockedHeight), radius)
-            }
-            if (allowed > 0) {
-                val top = plot.bottom - blockedHeight - allowedHeight
-                drawRoundRect(colors.allowed, Offset(x, top), Size(barWidth, allowedHeight), radius)
+            var bottom = plot.bottom
+            segments.forEachIndexed { s, value ->
+                if (value == 0) return@forEachIndexed
+                val height = plot.height * value / max
+                bottom -= height
+                drawRoundRect(barColors[s], Offset(x, bottom), Size(barWidth, height), radius)
             }
         }
         xLabels(measurer, labelStyle, labels, plot, slot)
         selected?.let { i ->
-            val (blocked, allowed) = bars[i]
-            val top = plot.bottom - plot.height * (blocked + allowed) / max
+            val top = plot.bottom - plot.height * bars[i].sum() / max
             drawTooltip(tooltip(i), Offset(plot.left + i * slot + slot / 2, top))
         }
     }
@@ -479,7 +496,7 @@ private fun headline(entries: List<Dated>, today: LocalDate): Headline {
     )
 }
 
-private fun stats(entries: List<Dated>, range: Range, today: LocalDate): Stats {
+private fun stats(entries: List<Dated>, range: Range, today: LocalDate, isSpam: (LogEntry) -> Boolean): Stats {
     val start = range.days?.let { today.minusDays(it - 1) } ?: entries.minOfOrNull { it.date } ?: today
     val inRange = entries.filter { !it.date.isBefore(start) }
     val blocked = inRange.filter { it.entry.blocked }
@@ -488,7 +505,9 @@ private fun stats(entries: List<Dated>, range: Range, today: LocalDate): Stats {
         .takeWhile { !it.isAfter(today) }
         .map { date ->
             val calls = byDate[date].orEmpty()
-            Day(date, calls.count { it.entry.blocked }, calls.count { !it.entry.blocked })
+            val (blocked, allowed) = calls.partition { it.entry.blocked }
+            val missed = allowed.count { isSpam(it.entry) }
+            Day(date, blocked.size, missed, allowed.size - missed)
         }
         .toList()
     return Stats(
